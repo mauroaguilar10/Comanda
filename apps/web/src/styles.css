@@ -485,3 +485,284 @@ label.button[aria-disabled='true'] {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ─── Tienda pública ───────────────────────────────────────────── */
+
+.store-header h1 {
+  margin-bottom: 0.25rem;
+}
+
+.closed-banner {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.store-category {
+  margin-top: 1.5rem;
+}
+
+.store-product {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+/* Deja lugar abajo para que la barra fija no tape el último producto. */
+.container.with-cart-bar {
+  padding-bottom: 6rem;
+}
+
+.cart-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); /* respeta la "barra" del iPhone */
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.cart-bar-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepper .button {
+  min-width: 44px;
+  padding: 0.4rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.stepper-value {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.link-button {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.order-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.order-lines li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.order-lines p {
+  margin: 0;
+}
+
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.checkout-form {
+  margin-top: 1.5rem;
+}
+
+.choice-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.choice-group legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.choice-group .hint {
+  margin: 0.25rem 0 0;
+}
+
+/* Toda la fila es tocable, no solo el circulito. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.choice input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+/* ─── Seguimiento ──────────────────────────────────────────────── */
+
+.status-now {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.timeline li {
+  position: relative;
+  padding-left: 2rem;
+  color: var(--muted);
+}
+
+/* Un círculo por paso: vacío (falta), lleno (hecho) o resaltado (ahora). */
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  top: 0.25rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+
+.timeline li.done {
+  color: var(--text);
+}
+
+.timeline li.done::before {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.timeline li.current {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.timeline li.current::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ─── Panel de pedidos ─────────────────────────────────────────── */
+
+.store-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--good);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.store-status.closed {
+  border-color: var(--bad);
+}
+
+.store-status p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.orders-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.count {
+  display: inline-block;
+  min-width: 1.75rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.order-card {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.order-card p {
+  margin: 0;
+}
+
+.order-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.order-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.order-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 1.05rem;
+}
+
+.order-notes {
+  font-style: italic;
+}
+
+.empty-orders {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* En pantallas anchas (tablet apaisada en el mostrador), los pedidos en dos columnas. */
+@media (min-width: 60rem) {
+  .orders-section .list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.container.wide {
+  max-width: 72rem;
+}
