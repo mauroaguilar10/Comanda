@@ -1,5 +1,7 @@
-import type { Role } from '../db/schema.js';
+import { randomUUID } from 'node:crypto';
+import type { Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
+import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
 import type { MembershipLookup } from '../modules/businesses/memberships.js';
 
 // Versiones en memoria de los servicios, para los tests.
@@ -28,6 +30,24 @@ export function fakeMemberships(entries: { userId: string; businessId: string; r
   return {
     async getRole(userId, businessId) {
       return entries.find((e) => e.userId === userId && e.businessId === businessId)?.role ?? null;
+    },
+  };
+}
+
+export function fakeUsers(initial: User[] = []): UserRepository & { all: User[] } {
+  const all = [...initial];
+  return {
+    all,
+    async findByEmail(email) {
+      return all.find((u) => u.email === email) ?? null;
+    },
+    async create(data) {
+      // Igual que el índice único de la base.
+      if (all.some((u) => u.email === data.email)) throw new EmailTakenError();
+      const now = new Date();
+      const user: User = { id: randomUUID(), emailVerifiedAt: null, createdAt: now, updatedAt: now, ...data };
+      all.push(user);
+      return user;
     },
   };
 }
