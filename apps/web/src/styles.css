@@ -766,3 +766,78 @@ label.button[aria-disabled='true'] {
 .container.wide {
   max-width: 72rem;
 }
+
+/* ─── Tiempo real ──────────────────────────────────────────────── */
+
+.live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.live-bar p {
+  margin: 0;
+}
+
+/* Punto de color + texto: el estado no depende solo del color. */
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.live::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.live-live::before {
+  background: var(--good);
+}
+
+.live-offline {
+  color: var(--bad);
+}
+
+.live-offline::before {
+  background: var(--bad);
+}
+
+/* Pedido recién llegado: borde marcado y una animación corta para que se note. */
+.order-card.fresh {
+  border: 2px solid var(--accent);
+  animation: llego 0.6s ease-out 2;
+}
+
+.fresh-badge {
+  margin-left: 0.5rem;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  vertical-align: middle;
+}
+
+@keyframes llego {
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* Quien pidió menos movimiento en su sistema no ve la animación. */
+@media (prefers-reduced-motion: reduce) {
+  .order-card.fresh {
+    animation: none;
+  }
+}
+
+.inline-live {
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}

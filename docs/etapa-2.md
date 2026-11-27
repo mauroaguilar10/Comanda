@@ -42,6 +42,10 @@ Las transiciones válidas viven en `@comanda/shared`: la API las hace cumplir y 
 
 **Límite de pedidos** por IP en la tienda pública, para frenar a quien quiera llenar el panel de pedidos falsos.
 
+**Tiempo real.** Socket.IO montado sobre el mismo servidor de la API. El panel escucha su local (hace falta sesión y ser miembro, igual que en las rutas) y la página de seguimiento escucha su pedido (hace falta el token). Los eventos solo dicen "cambió el pedido #N"; los datos se vuelven a pedir por la API, que es la única fuente de verdad y ya chequea permisos. Al reconectar se vuelve a pedir todo (un aviso pudo perderse en el corte) y queda una consulta cada 60 segundos como red de seguridad.
+
+Con una sola instancia de la API alcanza. Con varias, cada una tendría sus propias conexiones: habría que sumar el adaptador de Redis (o Postgres) de Socket.IO para que un evento llegue a todas.
+
 ## Fuera de esta etapa
 
 Costo de envío y zonas, horarios de atención, pagos online (Mercado Pago), notificaciones por WhatsApp y el historial de pedidos con filtros. El cobro se registra (efectivo o transferencia) pero no se procesa.

@@ -1,6 +1,9 @@
 import {
   ACTIVE_STATUSES,
   canChangeStatus,
+  clientEvents,
+  orderCreatedEventSchema,
+  serverEvents,
   nextStatuses,
   ordersResponseSchema,
   storeSettingsSchema,
@@ -13,13 +16,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, request } from '../api';
 import { FULFILLMENT_LABELS, PAYMENT_LABELS, STATUS_LABELS, actionLabel, formatTime, timeAgo } from '../labels';
 import { formatPrice } from '../money';
+import { liveLabel, useRealtime } from '../realtime';
 import { canManage } from '../roles';
 import { Redirect } from '../router';
+import { enableSound, playNewOrder, soundEnabled } from '../sound';
 import { storeUrl } from '../store-url';
 import { BusinessNav } from './BusinessNav';
 
-// Cada cuánto se actualiza el panel. En la próxima parte de la etapa llega solo (Socket.IO).
-const POLL_MS = 10_000;
+// Los cambios llegan al instante por Socket.IO. Igual consultamos cada minuto como red de
+// seguridad: si algo falla en la conexión, el panel nunca queda más de un minuto atrasado.
+const POLL_MS = 60_000;
+// Cuánto tiempo se resalta un pedido recién llegado.
+const FRESH_MS = 60_000;
 
 const SECTION_TITLES: Partial<Record<OrderStatus, string>> = {
   received: 'Nuevos',
@@ -36,6 +44,9 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [accepting, setAccepting] = useState<boolean | null>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  // Pedidos que llegaron mientras mirábamos: se resaltan un rato.
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const [sound, setSound] = useState(soundEnabled());
   const base = `/businesses/${businessId}`;
 
   const reload = useCallback(async () => {
@@ -65,6 +76,37 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [reload]);
+
+  const live = useRealtime(`business:${businessId}`, {
+    subscribe: (socket) => socket.emitWithAck(clientEvents.joinBusiness, { businessId }),
+    onSync: () => void reload(),
+    handlers: {
+      [serverEvents.orderCreated]: (payload) => {
+        const event = orderCreatedEventSchema.safeParse(payload);
+        if (!event.success) return;
+        playNewOrder();
+        setFresh((f) => new Set(f).add(event.data.orderId));
+        setTimeout(() => setFresh((f) => {
+          const next = new Set(f);
+          next.delete(event.data.orderId);
+          return next;
+        }), FRESH_MS);
+        void reload();
+      },
+      [serverEvents.orderUpdated]: () => void reload(),
+    },
+  });
+
+  // El título de la pestaña muestra cuántos pedidos nuevos esperan: se ve aunque
+  // la tablet esté en otra pestaña.
+  const waiting = state.status === 'ready' ? state.orders.filter((o) => o.status === 'received').length : 0;
+  useEffect(() => {
+    const previous = document.title;
+    document.title = waiting > 0 ? `(${waiting}) Pedidos nuevos · Comanda` : 'Pedidos · Comanda';
+    return () => {
+      document.title = previous;
+    };
+  }, [waiting]);
 
   if (!business) return <Redirect to="/" />;
 
@@ -115,6 +157,21 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
         )}
       </section>
 
+      <div className="live-bar">
+        {/* role="status": el lector de pantalla avisa si se corta la conexión. */}
+        <p role="status" className={`live live-${live}`}>
+          {liveLabel(live)}
+        </p>
+        {sound ? (
+          <p className="muted">🔔 Sonido activado</p>
+        ) : (
+          // El navegador no deja sonar hasta que la persona toca algo: por eso este botón.
+          <button type="button" className="button small" onClick={() => void enableSound().then((ok) => setSound(ok))}>
+            🔔 Activar sonido de pedidos nuevos
+          </button>
+        )}
+      </div>
+
       <div aria-live="polite">
         {notice && <p className={notice.kind === 'ok' ? 'notice' : 'form-error'}>{notice.text}</p>}
       </div>
@@ -126,7 +183,7 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
         </p>
       )}
       {state.status === 'ready' && state.orders.length === 0 && (
-        <p className="empty-orders muted">No hay pedidos en curso. Cuando entre uno, aparece acá (se actualiza solo).</p>
+        <p className="empty-orders muted">No hay pedidos en curso. Cuando entre uno, aparece acá al instante.</p>
       )}
       {state.status === 'ready' &&
         ACTIVE_STATUSES.map((status) => {
@@ -139,7 +196,13 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
               </h2>
               <ul className="list" role="list">
                 {orders.map((order) => (
-                  <OrderCard key={order.id} order={order} role={business.role} onMove={(to) => void move(order, to)} />
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    role={business.role}
+                    fresh={fresh.has(order.id) && order.status === 'received'}
+                    onMove={(to) => void move(order, to)}
+                  />
                 ))}
               </ul>
             </section>
@@ -149,16 +212,27 @@ export function OrdersPage({ businessId, me }: { businessId: string; me: MeRespo
   );
 }
 
-function OrderCard({ order, role, onMove }: { order: OrderResponse; role: Role; onMove: (to: OrderStatus) => void }) {
+function OrderCard({
+  order,
+  role,
+  fresh,
+  onMove,
+}: {
+  order: OrderResponse;
+  role: Role;
+  fresh: boolean;
+  onMove: (to: OrderStatus) => void;
+}) {
   // Solo los botones que esta persona puede usar (la API igual lo vuelve a chequear).
   const actions = nextStatuses(order.status, order.fulfillment).filter((to) => canChangeStatus(role, order.status, to, order.fulfillment));
   const advance = actions.filter((a) => a !== 'cancelled');
 
   return (
-    <li className="card order-card">
+    <li className={fresh ? 'card order-card fresh' : 'card order-card'}>
       <div className="order-head">
         <h3>
           #{order.number} · {order.customerName}
+          {fresh && <span className="badge fresh-badge">Nuevo</span>}
         </h3>
         <p className="muted">
           {formatTime(order.createdAt)} · {timeAgo(order.createdAt)}

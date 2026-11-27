@@ -1,13 +1,14 @@
-import { trackingResponseSchema, type OrderStatus, type TrackingResponse } from '@comanda/shared';
-import { useEffect, useState } from 'react';
+import { clientEvents, serverEvents, trackingResponseSchema, type OrderStatus, type TrackingResponse } from '@comanda/shared';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiError, request } from '../api';
+import { liveLabel, useRealtime } from '../realtime';
 import { STATUS_LABELS, formatTime } from '../labels';
 import { formatPrice } from '../money';
 import { Link } from '../router';
 import { storePath } from '../store-url';
 
-// Cada cuánto preguntamos si cambió el estado. En la próxima etapa llega solo (Socket.IO).
-const POLL_MS = 15_000;
+// Los cambios llegan al instante (Socket.IO). Por las dudas, igual preguntamos cada minuto.
+const POLL_MS = 60_000;
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; order: TrackingResponse };
 
@@ -15,35 +16,38 @@ type LoadState = { status: 'loading' } | { status: 'error'; message: string } | 
 export function TrackingPage({ slug, token }: { slug: string; token: string }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const order = await request(`/store/${encodeURIComponent(slug)}/orders/${encodeURIComponent(token)}`, trackingResponseSchema);
-        if (cancelled) return;
-        setState({ status: 'ready', order });
-        // Mientras el pedido siga en curso, volvemos a preguntar.
-        if (order.status !== 'delivered' && order.status !== 'cancelled') timer = setTimeout(load, POLL_MS);
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.status === 404) {
-          setState({ status: 'error', message: 'No encontramos este pedido. Revisá el link.' });
-        } else {
-          // Un corte de señal no tiene que borrar lo que ya se ve: reintentamos sin cambiar la pantalla.
-          setState((s) => (s.status === 'ready' ? s : { status: 'error', message: 'No pudimos cargar el pedido. Reintentando…' }));
-          timer = setTimeout(load, POLL_MS);
-        }
+  const load = useCallback(async () => {
+    try {
+      const order = await request(`/store/${encodeURIComponent(slug)}/orders/${encodeURIComponent(token)}`, trackingResponseSchema);
+      setState({ status: 'ready', order });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setState({ status: 'error', message: 'No encontramos este pedido. Revisá el link.' });
+      } else {
+        // Un corte de señal no tiene que borrar lo que ya se ve.
+        setState((s) => (s.status === 'ready' ? s : { status: 'error', message: 'No pudimos cargar el pedido. Reintentando…' }));
       }
     }
-
-    void load();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
   }, [slug, token]);
+
+  const finished = state.status === 'ready' && (state.order.status === 'delivered' || state.order.status === 'cancelled');
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Red de seguridad mientras el pedido siga en curso.
+  useEffect(() => {
+    if (finished) return;
+    const timer = setInterval(() => void load(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [load, finished]);
+
+  const live = useRealtime(`order:${token}`, {
+    subscribe: (socket) => socket.emitWithAck(clientEvents.trackOrder, { token }),
+    onSync: () => void load(),
+    handlers: { [serverEvents.orderUpdated]: () => void load() },
+  });
 
   if (state.status === 'loading') {
     return (
@@ -109,7 +113,10 @@ export function TrackingPage({ slug, token }: { slug: string; token: string }) {
         <p className="muted">Pedido a las {formatTime(order.createdAt)}</p>
       </section>
 
-      <p className="hint">Guardá esta página: es tu forma de ver cómo va el pedido. Se actualiza sola.</p>
+      <p className="hint">
+        Guardá esta página: es tu forma de ver cómo va el pedido. Se actualiza sola
+        {!finished && <span className={`live live-${live} inline-live`}> {liveLabel(live)}</span>}.
+      </p>
       <Link to={storePath(window.location.hostname, slug)}>Volver al menú</Link>
     </main>
   );

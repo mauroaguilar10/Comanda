@@ -32,7 +32,7 @@ Decisiones de diseño del sistema; las que dependen de módulos todavía no cons
 
 - **Etapa 0 completa:** esqueleto del monorepo, API con chequeo de salud y base, web que la consume, PostgreSQL en Docker y CI.
 - **Etapa 1 completa:** registro, login y sesiones con cookie httpOnly y Argon2; negocios multi-tenant con roles (dueño, encargado, cocina, reparto) chequeados en el backend; pantallas de login, registro y alta del local; catálogo de categorías y productos (precios en centavos, pausar sin stock) editable por dueño y encargado; equipo del local con invitaciones por link (para compartir por WhatsApp) que solo acepta el email invitado; fotos de productos achicadas en el navegador y guardadas en Cloudflare R2.
-- **Etapa 2 en curso:** tienda pública con carrito y checkout sin cuenta, seguimiento del pedido por link, y panel de pedidos del local con estados por rol (cocina, reparto). Falta el tiempo real con Socket.IO (hoy el panel se actualiza cada 10 segundos). Ver [docs/etapa-2.md](docs/etapa-2.md).
+- **Etapa 2 completa:** tienda pública con carrito y checkout sin cuenta, seguimiento del pedido por link, y panel de pedidos del local con estados por rol (cocina, reparto). Todo en tiempo real con Socket.IO: el pedido aparece en el panel en menos de un segundo, con aviso sonoro. Ver [docs/etapa-2.md](docs/etapa-2.md).
 
 ---
 
