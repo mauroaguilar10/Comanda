@@ -76,9 +76,15 @@ export function useFormSubmit(onSubmit: (form: HTMLFormElement) => Promise<Field
     try {
       errors = (await onSubmit(form)) ?? {};
     } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      errors = Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, v?.[0]]));
-      if (Object.keys(errors).length === 0) setFormError(err.message);
+      if (err instanceof ApiError) {
+        errors = Object.fromEntries(Object.entries(err.fields).map(([k, v]) => [k, v?.[0]]));
+        if (Object.keys(errors).length === 0) setFormError(err.message);
+      } else {
+        // Un error que no esperábamos (un bug, o la API respondió con otra forma de datos).
+        // Antes se perdía y el formulario no mostraba nada: ahora avisamos y lo dejamos en la consola.
+        console.error(err);
+        setFormError('Algo salió mal. Probá de nuevo en un rato.');
+      }
     } finally {
       setPending(false);
     }

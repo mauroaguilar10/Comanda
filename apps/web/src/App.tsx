@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
@@ -15,7 +16,7 @@ export function App() {
 
 // Qué pantalla mostrar según la URL y si hay sesión.
 function Routes() {
-  const { state } = useAuth();
+  const { state, refresh } = useAuth();
   const path = usePath();
 
   if (state.status === 'loading') {
@@ -25,6 +26,8 @@ function Routes() {
       </main>
     );
   }
+
+  if (state.status === 'error') return <SessionError retry={refresh} />;
 
   if (state.status === 'anonymous') {
     if (path === '/registro') return <RegisterPage />;
@@ -37,4 +40,25 @@ function Routes() {
   if (path === '/locales/nuevo') return <NewBusinessPage />;
   if (path !== '/') return <Redirect to="/" />;
   return <HomePage me={state.me} />;
+}
+
+function SessionError({ retry }: { retry: () => Promise<void> }) {
+  const [pending, setPending] = useState(false);
+  async function onRetry() {
+    setPending(true);
+    try {
+      await retry();
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <main className="container narrow">
+      <h1>Algo salió mal</h1>
+      <p role="alert">No pudimos cargar tu sesión. Probá de nuevo en un rato.</p>
+      <button type="button" className="button primary" onClick={onRetry} disabled={pending}>
+        {pending ? 'Reintentando…' : 'Reintentar'}
+      </button>
+    </main>
+  );
 }

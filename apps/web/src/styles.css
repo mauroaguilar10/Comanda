@@ -203,3 +203,8 @@ h1 {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* Aviso de error de ancho completo, debajo de la barra superior */
+.form-error.banner {
+  margin: 1rem;
+}
