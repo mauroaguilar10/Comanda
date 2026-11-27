@@ -67,8 +67,8 @@ export function HomePage({ me }: { me: MeResponse }) {
                     <span className="badge">{ROLE_LABELS[b.role]}</span>
                   </p>
                   <p>
-                    <Link to={`/locales/${b.id}`} className="button small" aria-label={`Ver el menú de ${b.name}`}>
-                      Ver menú
+                    <Link to={`/locales/${b.id}`} className="button small" aria-label={`Abrir ${b.name}`}>
+                      Abrir
                     </Link>
                   </p>
                 </li>
