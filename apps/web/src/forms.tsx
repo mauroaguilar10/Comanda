@@ -8,12 +8,15 @@ export type FieldErrors = Record<string, string | undefined>;
 // los lee al entrar al campo). aria-invalid marca el campo con error.
 export function Field({
   name,
+  id: idProp,
   label,
   error,
   hint,
   ...input
 }: { name: string; label: string; error?: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
-  const id = `field-${name}`;
+  // Pasá un id propio si puede haber dos formularios con el mismo campo en pantalla:
+  // los ids tienen que ser únicos para que cada <label> apunte a su input.
+  const id = idProp ?? `field-${name}`;
   const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
   return (
     <div className="field">

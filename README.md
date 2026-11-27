@@ -31,7 +31,7 @@ Decisiones de diseño del sistema; las que dependen de módulos todavía no cons
 ## Estado
 
 - **Etapa 0 completa:** esqueleto del monorepo, API con chequeo de salud y base, web que la consume, PostgreSQL en Docker y CI.
-- **Etapa 1 en curso:** registro, login y sesiones con cookie httpOnly y Argon2; negocios multi-tenant con roles (dueño, encargado, cocina, reparto) chequeados en el backend; pantallas de login, registro y alta del local. Faltan las invitaciones de empleados y el catálogo con fotos.
+- **Etapa 1 en curso:** registro, login y sesiones con cookie httpOnly y Argon2; negocios multi-tenant con roles (dueño, encargado, cocina, reparto) chequeados en el backend; pantallas de login, registro y alta del local; catálogo de categorías y productos (precios en centavos, pausar sin stock) editable por dueño y encargado. Faltan las invitaciones de empleados y las fotos de los productos.
 
 ---
 

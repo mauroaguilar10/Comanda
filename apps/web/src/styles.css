@@ -208,3 +208,140 @@ h1 {
 .form-error.banner {
   margin: 1rem;
 }
+
+/* Botones chicos (acciones dentro de una fila) y de borrar */
+.button.small {
+  min-height: 44px; /* igual de cómodos para tocar, solo menos relleno */
+  padding: 0.4rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.button.danger {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Mensaje de éxito después de una acción */
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--good);
+  border-radius: var(--radius);
+  color: var(--good);
+  font-weight: 600;
+}
+
+.form-error {
+  margin-bottom: 1rem;
+}
+
+/* Formulario de una línea: campo + botón */
+.inline-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Menú del local */
+.category {
+  border-top: 1px solid var(--border);
+  padding: 1rem 0 1.5rem;
+}
+
+.category-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.category-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.products {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.product {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.product h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.product p {
+  margin: 0.15rem 0;
+}
+
+/* Pausado: se ve apagado, pero el texto mantiene contraste suficiente. */
+.product.paused {
+  border-style: dashed;
+}
+
+.product.paused h3 {
+  color: var(--muted);
+}
+
+.product-form {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.field select {
+  font: inherit;
+  font-size: max(1rem, 16px);
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+}
+
+/* En pantallas anchas, la info del producto a la izquierda y los botones a la derecha. */
+@media (min-width: 40rem) {
+  .product {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .inline-form {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .inline-form .form-error {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Al editar, el formulario ya está dentro de la tarjeta del producto: sin segundo recuadro. */
+.product .product-form {
+  border: none;
+  padding: 0;
+}
+
+.paused-badge {
+  margin-left: 0.5rem;
+}
