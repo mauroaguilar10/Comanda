@@ -1,13 +1,19 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
+import { createDb } from './db/client.js';
 import { createPool, pingDatabase } from './db.js';
+import { createSessionService } from './modules/auth/sessions.js';
+import { createMembershipLookup } from './modules/businesses/memberships.js';
 
 const config = loadConfig();
 const pool = config.DATABASE_URL ? createPool(config.DATABASE_URL) : undefined;
+const db = pool ? createDb(pool) : undefined;
 
-const app = buildApp({
+const app = await buildApp({
   logger: true,
+  secureCookies: config.NODE_ENV === 'production',
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
+  ...(db && { sessions: createSessionService(db), memberships: createMembershipLookup(db) }),
 });
 
 // Cierre prolijo: al recibir Ctrl+C o la señal de Docker, termina las

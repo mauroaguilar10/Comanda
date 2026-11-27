@@ -12,6 +12,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "db:up": "docker compose up -d db",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @comanda/api db:migrate",
+    "db:generate": "pnpm --filter @comanda/api db:generate"
   }
 }

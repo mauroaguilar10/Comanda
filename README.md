@@ -62,6 +62,7 @@ Es un **monorepo** con pnpm workspaces: un solo repo, un solo `pnpm install`, y 
 pnpm install
 cp .env.example .env      # en Windows PowerShell: copy .env.example .env
 pnpm db:up                # levanta PostgreSQL en Docker
+pnpm db:migrate           # crea las tablas
 pnpm dev                  # API en :3000 y web en :5173
 ```
 
@@ -76,6 +77,8 @@ Abrí http://localhost:5173: tiene que decir API `ok` y Base de datos `ok`. Si l
 | `pnpm typecheck` | Chequea los tipos de TypeScript sin compilar |
 | `pnpm build` | Compila todo como para producción |
 | `pnpm db:up` / `pnpm db:down` | Prende o apaga PostgreSQL |
+| `pnpm db:migrate` | Aplica las migraciones pendientes |
+| `pnpm db:generate` | Genera una migración nueva después de cambiar `schema.ts` |
 
 ## Licencia
 
