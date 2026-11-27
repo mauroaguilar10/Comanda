@@ -15,6 +15,13 @@
       "when": 1795810641442,
       "tag": "0001_etapa1_catalogo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795812161795,
+      "tag": "0002_etapa1_invitaciones",
+      "breakpoints": true
     }
   ]
 }

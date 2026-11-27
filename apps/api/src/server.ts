@@ -7,10 +7,14 @@ import { createUserRepository } from './modules/auth/users.js';
 import { createBusinessService } from './modules/businesses/businesses.js';
 import { createCatalogService } from './modules/catalog/catalog.js';
 import { createMembershipLookup } from './modules/businesses/memberships.js';
+import { createTeamService } from './modules/businesses/team.js';
 
 const config = loadConfig();
 const pool = config.DATABASE_URL ? createPool(config.DATABASE_URL) : undefined;
 const db = pool ? createDb(pool) : undefined;
+
+// users se crea una vez y lo comparten auth (rutas) y el equipo (que no lee la tabla users directo).
+const users = db ? createUserRepository(db) : undefined;
 
 const app = await buildApp({
   logger: true,
@@ -21,9 +25,10 @@ const app = await buildApp({
   ...(db && {
     sessions: createSessionService(db),
     memberships: createMembershipLookup(db),
-    users: createUserRepository(db),
+    users,
     businesses: createBusinessService(db),
     catalog: createCatalogService(db),
+    team: createTeamService(db, users!),
   }),
 });
 

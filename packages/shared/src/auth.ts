@@ -6,7 +6,9 @@ import { z } from 'zod';
 export const roleSchema = z.enum(['owner', 'manager', 'kitchen', 'driver']);
 export type Role = z.infer<typeof roleSchema>;
 
-const email = z.string().trim().toLowerCase().pipe(z.email('Email inválido'));
+// Exportado para que las invitaciones normalicen el email igual que el registro.
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email('Email inválido'));
+const email = emailSchema;
 const password = z.string().min(10, 'Mínimo 10 caracteres').max(200);
 
 // POST /auth/register
