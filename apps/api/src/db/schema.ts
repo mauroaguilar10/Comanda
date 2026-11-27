@@ -152,6 +152,9 @@ export const products = pgTable(
     priceCents: integer('price_cents').notNull(),
     // false = "sin stock por hoy": sigue cargado pero no se puede pedir.
     available: boolean('available').notNull().default(true),
+    // Clave de la foto en el almacenamiento (R2 o disco), no la URL: si mañana cambia
+    // el dominio de las fotos, solo cambia la configuración, no los datos.
+    imageKey: text('image_key'),
     position: integer('position').notNull().default(0),
     ...timestamps,
   },

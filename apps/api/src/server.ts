@@ -1,7 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { buildApp } from './app.js';
-import { loadConfig } from './config.js';
+import { loadConfig, r2Config } from './config.js';
 import { createDb } from './db/client.js';
 import { createPool, pingDatabase } from './db.js';
+import { createLocalStorage, createR2Storage } from './lib/storage.js';
 import { createSessionService } from './modules/auth/sessions.js';
 import { createUserRepository } from './modules/auth/users.js';
 import { createBusinessService } from './modules/businesses/businesses.js';
@@ -16,10 +18,19 @@ const db = pool ? createDb(pool) : undefined;
 // users se crea una vez y lo comparten auth (rutas) y el equipo (que no lee la tabla users directo).
 const users = db ? createUserRepository(db) : undefined;
 
+// Fotos: R2 si está configurado; si no, una carpeta local que sirve la propia API.
+const r2 = r2Config(config);
+// fileURLToPath convierte la URL del módulo en una ruta del sistema (C:\... en Windows).
+// '../uploads' queda en apps/api/uploads, tanto desde src/ como desde dist/.
+const diskStorage = r2 ? undefined : createLocalStorage(fileURLToPath(new URL('../uploads', import.meta.url)), config.PUBLIC_API_URL);
+const storage = r2 ? createR2Storage(r2) : diskStorage!;
+
 const app = await buildApp({
   logger: true,
   secureCookies: config.NODE_ENV === 'production',
   corsOrigins: config.CORS_ORIGINS,
+  storage,
+  ...(diskStorage && { readUpload: diskStorage.read }),
   trustProxy: config.TRUST_PROXY,
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
   ...(db && {

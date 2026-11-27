@@ -5,6 +5,10 @@ import { z } from 'zod';
 
 const name = z.string().trim().min(1, 'Poné un nombre').max(80, 'Máximo 80 caracteres');
 
+// Fotos: la web las achica antes de subirlas, así que 2 MB sobra.
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+export const IMAGE_CONTENT_TYPES = ['image/webp', 'image/jpeg', 'image/png'] as const;
+
 // Tope de $10.000.000 por producto: un precio más alto es casi seguro un error de tipeo.
 export const MAX_PRICE_CENTS = 1_000_000_000;
 
@@ -57,6 +61,8 @@ export const productSchema = z.object({
   priceCents: z.int(),
   available: z.boolean(),
   position: z.int(),
+  // URL lista para un <img>, o null si no tiene foto.
+  imageUrl: z.string().nullable(),
 });
 export type ProductResponse = z.infer<typeof productSchema>;
 

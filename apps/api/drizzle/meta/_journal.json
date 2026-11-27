@@ -22,6 +22,13 @@
       "when": 1795812161795,
       "tag": "0002_etapa1_invitaciones",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795812896743,
+      "tag": "0003_etapa1_fotos",
+      "breakpoints": true
     }
   ]
 }

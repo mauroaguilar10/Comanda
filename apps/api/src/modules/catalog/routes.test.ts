@@ -1,9 +1,9 @@
-import { catalogResponseSchema } from '@comanda/shared';
+import { catalogResponseSchema, MAX_IMAGE_BYTES } from '@comanda/shared';
 import { describe, expect, it } from 'vitest';
 import type { Role } from '../../db/schema.js';
 import { buildApp } from '../../app.js';
 import { SESSION_COOKIE } from '../../plugins/auth.js';
-import { fakeCatalog, fakeMemberships, fakeSessions, fakeUsers, makeBusiness } from '../../test/fakes.js';
+import { fakeCatalog, fakeMemberships, fakeSessions, fakeStorage, fakeUsers, makeBusiness } from '../../test/fakes.js';
 
 // Dos locales: "Don Mario" (donde trabajan todos) y "Otro" (de otra persona).
 async function setup() {
@@ -13,7 +13,8 @@ async function setup() {
   const otro = makeBusiness({ name: 'Otro', slug: 'otro' });
   const memberships = fakeMemberships([], [donMario, otro]);
   const catalog = fakeCatalog();
-  const app = await buildApp({ users, sessions, memberships, catalog });
+  const storage = fakeStorage();
+  const app = await buildApp({ users, sessions, memberships, catalog, storage });
 
   // Crea una persona con ese rol en el local y devuelve el header de su sesión.
   async function as(role: Role, businessId = donMario.id) {
@@ -24,7 +25,7 @@ async function setup() {
   }
 
   const base = `/businesses/${donMario.id}`;
-  return { app, catalog, donMario, otro, base, as };
+  return { app, catalog, storage, donMario, otro, base, as };
 }
 
 type Ctx = Awaited<ReturnType<typeof setup>>;
@@ -53,7 +54,7 @@ describe('GET /businesses/:businessId/catalog', () => {
     const body = catalogResponseSchema.parse(res.json());
     expect(body.categories.map((c) => c.name)).toEqual(['Pizzas', 'Bebidas']);
     expect(body.categories[0]!.products).toMatchObject([
-      { name: 'Muzzarella', priceCents: 900000, available: true, description: null },
+      { name: 'Muzzarella', priceCents: 900000, available: true, description: null, imageUrl: null },
     ]);
     expect(body.categories[1]!.products).toMatchObject([{ name: 'Coca 1.5L', available: false }]);
     // Solo campos públicos.
@@ -241,5 +242,116 @@ describe('productos', () => {
     expect(edit.statusCode).toBe(404);
     expect(del.statusCode).toBe(404);
     expect(ctx.catalog.products[0]!.priceCents).toBe(100);
+  });
+});
+
+describe('fotos de productos', () => {
+  // Los primeros bytes de cada formato alcanzan para que la API los reconozca.
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 '), Buffer.alloc(32)]);
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32)]);
+
+  async function withProduct() {
+    const ctx = await setup();
+    const owner = await ctx.as('owner');
+    const pizzas = await createCategory(ctx, owner);
+    const id = (await post(ctx, owner, '/products', { categoryId: pizzas, name: 'Muzza', priceCents: 100 })).json().id as string;
+    const upload = (body: Buffer, contentType: string, headers = owner, productId = id) =>
+      ctx.app.inject({
+        method: 'PUT',
+        url: `${ctx.base}/products/${productId}/image`,
+        headers: { ...headers, 'content-type': contentType },
+        payload: body,
+      });
+    return { ...ctx, owner, id, upload };
+  }
+
+  it('sube la foto, la guarda y devuelve su URL', async () => {
+    const { upload, storage, catalog } = await withProduct();
+
+    const res = await upload(webp, 'image/webp');
+
+    expect(res.statusCode).toBe(200);
+    const [key] = [...storage.files.keys()];
+    expect(key).toMatch(/^products\/.+\.webp$/);
+    expect(storage.files.get(key!)?.contentType).toBe('image/webp');
+    expect(res.json().imageUrl).toBe(`https://fotos.test/${key}`);
+    expect(catalog.products[0]!.imageKey).toBe(key);
+  });
+
+  it('reemplazar la foto borra la anterior del almacenamiento', async () => {
+    const { upload, storage } = await withProduct();
+    await upload(webp, 'image/webp');
+    const [first] = [...storage.files.keys()];
+
+    await upload(jpeg, 'image/jpeg');
+
+    const keys = [...storage.files.keys()];
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).not.toBe(first);
+    expect(keys[0]).toMatch(/\.jpg$/);
+  });
+
+  it('rechaza un archivo que dice ser imagen pero no lo es (415)', async () => {
+    const { upload, storage } = await withProduct();
+
+    const res = await upload(Buffer.from('<html><script>alert(1)</script></html>'), 'image/png');
+
+    expect(res.statusCode).toBe(415);
+    expect(storage.files.size).toBe(0);
+  });
+
+  it('rechaza tipos que no son imágenes (415)', async () => {
+    const { upload } = await withProduct();
+
+    const res = await upload(Buffer.from('hola'), 'text/plain');
+
+    expect(res.statusCode).toBe(415);
+    expect(res.json()).toMatchObject({ error: 'unsupported_image' });
+  });
+
+  it('rechaza fotos de más de 2 MB (413)', async () => {
+    const { upload, storage } = await withProduct();
+    const huge = Buffer.concat([jpeg, Buffer.alloc(MAX_IMAGE_BYTES)]);
+
+    const res = await upload(huge, 'image/jpeg');
+
+    expect(res.statusCode).toBe(413);
+    expect(res.json()).toMatchObject({ error: 'image_too_large' });
+    expect(storage.files.size).toBe(0);
+  });
+
+  it('cocina no puede subir fotos (403)', async () => {
+    const { upload, as } = await withProduct();
+
+    expect((await upload(webp, 'image/webp', await as('kitchen'))).statusCode).toBe(403);
+  });
+
+  it('un producto que no existe da 404 y no deja el archivo guardado', async () => {
+    const { upload, storage, owner } = await withProduct();
+
+    const res = await upload(webp, 'image/webp', owner, '00000000-0000-0000-0000-000000000000');
+
+    expect(res.statusCode).toBe(404);
+    expect(storage.files.size).toBe(0);
+  });
+
+  it('quitar la foto la borra', async () => {
+    const { app, base, id, owner, upload, storage } = await withProduct();
+    await upload(webp, 'image/webp');
+
+    const res = await app.inject({ method: 'DELETE', url: `${base}/products/${id}/image`, headers: owner });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().imageUrl).toBeNull();
+    expect(storage.files.size).toBe(0);
+  });
+
+  it('borrar el producto borra también su foto', async () => {
+    const { app, base, id, owner, upload, storage } = await withProduct();
+    await upload(webp, 'image/webp');
+
+    await app.inject({ method: 'DELETE', url: `${base}/products/${id}`, headers: owner });
+
+    expect(storage.files.size).toBe(0);
   });
 });

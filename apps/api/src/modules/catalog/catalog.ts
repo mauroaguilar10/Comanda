@@ -40,7 +40,14 @@ export interface CatalogService {
   // Tira CategoryNotFoundError si la categoría no es de este local.
   createProduct(businessId: string, input: ProductCreate): Promise<Product>;
   updateProduct(businessId: string, productId: string, input: ProductUpdate): Promise<Product | null>;
-  deleteProduct(businessId: string, productId: string): Promise<boolean>;
+  // Devuelve el producto borrado (para borrar también su foto), o null si no existía.
+  deleteProduct(businessId: string, productId: string): Promise<Product | null>;
+  // Cambia (o quita, con null) la foto. Devuelve la clave anterior para borrar ese archivo.
+  setImage(
+    businessId: string,
+    productId: string,
+    imageKey: string | null,
+  ): Promise<{ product: Product; previousKey: string | null } | null>;
 }
 
 export function createCatalogService(db: Db): CatalogService {
@@ -144,11 +151,23 @@ export function createCatalogService(db: Db): CatalogService {
     },
 
     async deleteProduct(businessId, productId) {
-      const deleted = await db
+      const [deleted] = await db
         .delete(products)
         .where(and(eq(products.id, productId), eq(products.businessId, businessId)))
-        .returning({ id: products.id });
-      return deleted.length > 0;
+        .returning();
+      return deleted ?? null;
+    },
+
+    async setImage(businessId, productId, imageKey) {
+      return db.transaction(async (tx) => {
+        const where = and(eq(products.id, productId), eq(products.businessId, businessId));
+        // FOR UPDATE: si llegan dos fotos a la vez, cada una ve la clave que dejó la otra
+        // y ningún archivo queda guardado sin que nadie lo apunte.
+        const [current] = await tx.select({ imageKey: products.imageKey }).from(products).where(where).for('update');
+        if (!current) return null;
+        const [product] = await tx.update(products).set({ imageKey }).where(where).returning();
+        return { product: product!, previousKey: current.imageKey };
+      });
     },
   };
 }
