@@ -11,6 +11,7 @@ import {
 } from '@comanda/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, request } from '../api';
+import { resizeImage } from '../image';
 import { Field, FormError, formValues, issuesToFieldErrors, useFormSubmit } from '../forms';
 import { centsToInput, formatPrice, parsePrice } from '../money';
 import { canManage } from '../roles';
@@ -268,6 +269,7 @@ function ProductRow({
           product={product}
           categoryId={product.categoryId}
           categories={categories}
+          reload={reload}
           onDone={async (changed) => {
             setEditing(false);
             if (changed) await reload();
@@ -279,13 +281,20 @@ function ProductRow({
 
   return (
     <li className={product.available ? 'product' : 'product paused'}>
-      <div className="product-info">
-        <h3>{product.name}</h3>
-        {product.description && <p className="muted">{product.description}</p>}
-        <p>
-          <strong>{formatPrice(product.priceCents)}</strong>
-          {!product.available && <span className="badge paused-badge">Pausado</span>}
-        </p>
+      <div className="product-main">
+        {product.imageUrl && (
+          // alt vacío: el nombre está justo al lado; repetirlo no le suma nada al lector de pantalla.
+          // width/height reservan el lugar y evitan que la página "salte" al cargar la foto.
+          <img className="product-thumb" src={product.imageUrl} alt="" width={72} height={72} loading="lazy" />
+        )}
+        <div className="product-info">
+          <h3>{product.name}</h3>
+          {product.description && <p className="muted">{product.description}</p>}
+          <p>
+            <strong>{formatPrice(product.priceCents)}</strong>
+            {!product.available && <span className="badge paused-badge">Pausado</span>}
+          </p>
+        </div>
       </div>
       {canEdit && (
         <div className="actions">
@@ -329,12 +338,15 @@ function ProductForm({
   product,
   categoryId,
   categories,
+  reload,
   onDone,
 }: {
   base: string;
   product?: ProductResponse;
   categoryId: string;
   categories: Category[];
+  // Para refrescar después de cambiar la foto sin cerrar el formulario.
+  reload?: () => Promise<void>;
   onDone: (changed: boolean) => Promise<void>;
 }) {
   const { pending, fieldErrors, formError, handleSubmit } = useFormSubmit(async (form) => {
@@ -394,6 +406,11 @@ function ProductForm({
         error={fieldErrors.priceCents}
       />
       {product ? (
+        <ProductPhoto base={base} product={product} onChanged={reload ?? (async () => {})} />
+      ) : (
+        <p className="hint">La foto se agrega después, desde "Editar".</p>
+      )}
+      {product ? (
         <div className="field">
           <label htmlFor={`${prefix}-category`}>Categoría</label>
           <select id={`${prefix}-category`} name="categoryId" defaultValue={categoryId}>
@@ -417,5 +434,89 @@ function ProductForm({
         </button>
       </div>
     </form>
+  );
+}
+
+// Foto del producto. Se sube apenas se elige (no espera a "Guardar cambios"):
+// es un archivo aparte del resto de los datos.
+function ProductPhoto({
+  base,
+  product,
+  onChanged,
+}: {
+  base: string;
+  product: ProductResponse;
+  onChanged: () => Promise<void>;
+}) {
+  const [pending, setPending] = useState<'upload' | 'remove' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const url = `${base}/products/${product.id}/image`;
+  const inputId = `photo-${product.id}`;
+
+  async function change(action: 'upload' | 'remove', work: () => Promise<unknown>) {
+    setPending(action);
+    setError(null);
+    try {
+      await work();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No pudimos guardar la foto.');
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function onFile(file: File | undefined) {
+    if (!file) return;
+    await change('upload', async () => {
+      const resized = await resizeImage(file);
+      await request(url, productSchema, { method: 'PUT', body: resized });
+    });
+  }
+
+  return (
+    // fieldset + legend: agrupa los controles de la foto bajo un mismo nombre.
+    <fieldset className="photo-field">
+      <legend>Foto</legend>
+      {product.imageUrl ? (
+        <img className="photo-preview" src={product.imageUrl} alt={`Foto actual de ${product.name}`} width={160} height={160} />
+      ) : (
+        <p className="muted">Sin foto todavía.</p>
+      )}
+      <div className="actions">
+        {/* El input real queda oculto pero enfocable; el label hace de botón y lo abre.
+            accept="image/*": en el celular ofrece la cámara o la galería. */}
+        <input
+          id={inputId}
+          type="file"
+          accept="image/*"
+          className="visually-hidden file-input"
+          disabled={pending !== null}
+          onChange={(e) => {
+            void onFile(e.currentTarget.files?.[0]);
+            // Limpiamos el valor para que elegir la misma foto otra vez vuelva a disparar onChange.
+            e.currentTarget.value = '';
+          }}
+        />
+        <label htmlFor={inputId} className="button small" aria-disabled={pending !== null}>
+          {pending === 'upload' ? 'Subiendo…' : product.imageUrl ? 'Cambiar foto' : 'Agregar foto'}
+        </label>
+        {product.imageUrl && (
+          <button
+            type="button"
+            className="button small danger"
+            disabled={pending !== null}
+            onClick={() => void change('remove', () => request(url, productSchema, { method: 'DELETE' }))}
+          >
+            {pending === 'remove' ? 'Quitando…' : 'Quitar foto'}
+          </button>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="field-error">
+          {error}
+        </p>
+      )}
+    </fieldset>
   );
 }

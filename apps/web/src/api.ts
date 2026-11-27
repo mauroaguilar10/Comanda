@@ -28,16 +28,19 @@ export class ApiError extends Error {
 export async function request<T>(
   path: string,
   schema: Schema<T> | null,
+  // body: un objeto se manda como JSON; un Blob (por ejemplo, una foto) se manda tal cual.
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
+  const { body } = init;
+  const isFile = body instanceof Blob;
   let res: Response;
   try {
     res = await fetch(BASE_URL + path, {
       method: init.method ?? 'GET',
       // Manda y recibe la cookie de sesión (hace falta cuando la API está en otro dominio).
       credentials: 'include',
-      headers: init.body === undefined ? {} : { 'content-type': 'application/json' },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      headers: body === undefined ? {} : { 'content-type': isFile ? body.type : 'application/json' },
+      body: body === undefined ? undefined : isFile ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'network_error', 'No se pudo conectar con el servidor. Revisá tu conexión.');
