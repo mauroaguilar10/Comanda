@@ -3,6 +3,8 @@ import { loadConfig } from './config.js';
 import { createDb } from './db/client.js';
 import { createPool, pingDatabase } from './db.js';
 import { createSessionService } from './modules/auth/sessions.js';
+import { createUserRepository } from './modules/auth/users.js';
+import { createBusinessService } from './modules/businesses/businesses.js';
 import { createMembershipLookup } from './modules/businesses/memberships.js';
 
 const config = loadConfig();
@@ -13,7 +15,12 @@ const app = await buildApp({
   logger: true,
   secureCookies: config.NODE_ENV === 'production',
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
-  ...(db && { sessions: createSessionService(db), memberships: createMembershipLookup(db) }),
+  ...(db && {
+    sessions: createSessionService(db),
+    memberships: createMembershipLookup(db),
+    users: createUserRepository(db),
+    businesses: createBusinessService(db),
+  }),
 });
 
 // Cierre prolijo: al recibir Ctrl+C o la señal de Docker, termina las
