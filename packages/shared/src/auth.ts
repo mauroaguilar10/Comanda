@@ -47,6 +47,18 @@ export const createBusinessInputSchema = z.object({
 });
 export type CreateBusinessInput = z.infer<typeof createBusinessInputSchema>;
 
+// Respuesta de POST /businesses y GET /businesses/:businessId
+export const businessSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  slug: z.string(),
+  businessType: z.string(),
+  phone: z.string().nullable(),
+  address: z.string().nullable(),
+  timezone: z.string(),
+});
+export type BusinessResponse = z.infer<typeof businessSchema>;
+
 // Formato común de error de la API.
 export const apiErrorSchema = z.object({ error: z.string(), message: z.string() });
 export type ApiError = z.infer<typeof apiErrorSchema>;

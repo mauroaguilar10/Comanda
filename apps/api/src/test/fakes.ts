@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Business, Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
 import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
+import { SlugTakenError, type BusinessService } from '../modules/businesses/businesses.js';
 import type { MembershipLookup } from '../modules/businesses/memberships.js';
 
 // Versiones en memoria de los servicios, para los tests.
@@ -90,5 +91,22 @@ export function makeBusiness(data: Partial<Business> & { name: string; slug: str
     createdAt: now,
     updatedAt: now,
     ...data,
+  };
+}
+
+// Escribe en las mismas listas que fakeMemberships, así después de crear un negocio
+// /auth/me y requireRole lo ven, igual que con la base de verdad.
+export function fakeBusinesses(memberships: ReturnType<typeof fakeMemberships>): BusinessService {
+  return {
+    async createWithOwner(ownerId, input) {
+      if (memberships.businesses.some((b) => b.slug === input.slug)) throw new SlugTakenError();
+      const business = makeBusiness({ name: input.name, slug: input.slug, phone: input.phone ?? null, address: input.address ?? null });
+      memberships.businesses.push(business);
+      memberships.entries.push({ userId: ownerId, businessId: business.id, role: 'owner' });
+      return business;
+    },
+    async findById(id) {
+      return memberships.businesses.find((b) => b.id === id) ?? null;
+    },
   };
 }

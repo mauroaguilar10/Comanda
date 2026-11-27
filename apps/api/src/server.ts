@@ -4,6 +4,7 @@ import { createDb } from './db/client.js';
 import { createPool, pingDatabase } from './db.js';
 import { createSessionService } from './modules/auth/sessions.js';
 import { createUserRepository } from './modules/auth/users.js';
+import { createBusinessService } from './modules/businesses/businesses.js';
 import { createMembershipLookup } from './modules/businesses/memberships.js';
 
 const config = loadConfig();
@@ -18,6 +19,7 @@ const app = await buildApp({
     sessions: createSessionService(db),
     memberships: createMembershipLookup(db),
     users: createUserRepository(db),
+    businesses: createBusinessService(db),
   }),
 });
 
