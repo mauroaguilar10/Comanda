@@ -45,7 +45,13 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   // Nunca usar origin: '*' acá: con credentials permitiría que cualquier sitio
   // haga pedidos con la sesión del usuario.
   if (deps.corsOrigins?.length) {
-    await app.register(cors, { origin: deps.corsOrigins, credentials: true });
+    await app.register(cors, {
+      origin: deps.corsOrigins,
+      credentials: true,
+      // Por defecto el plugin solo permite GET, HEAD y POST: sin esto, el navegador
+      // bloquea editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+    });
   }
 
   await registerRateLimit(app);
