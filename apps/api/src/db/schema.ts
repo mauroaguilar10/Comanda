@@ -88,6 +88,31 @@ export const memberships = pgTable(
   ],
 );
 
+// Invitaciones para sumarse a un local. El dueño o encargado la crea y comparte un link
+// con el token; la persona invitada entra con ese link y, logueada con ese email, la acepta.
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    // Solo esta persona puede aceptarla (en minúsculas, como users.email).
+    email: text('email').notNull(),
+    role: roleEnum('role').notNull(),
+    // Igual que en sessions: el token viaja en el link y acá guardamos solo su hash.
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: uuid('invited_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    // null = pendiente. Se completa al aceptarla: un link sirve una sola vez.
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('invitations_token_hash_unique').on(t.tokenHash), index('invitations_business_id_idx').on(t.businessId)],
+);
+
 // Catálogo: cada local organiza sus productos en categorías ("Pizzas", "Empanadas", "Bebidas").
 // Las dos tablas llevan business_id aunque el producto ya sepa su categoría: así cada consulta
 // filtra por local directamente y es imposible mezclar el menú de dos negocios.
@@ -144,5 +169,6 @@ export type Session = typeof sessions.$inferSelect;
 export type Business = typeof businesses.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Role = (typeof roleEnum.enumValues)[number];
+export type Invitation = typeof invitations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;

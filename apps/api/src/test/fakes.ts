@@ -1,9 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import type { Business, Category, Product, Role, User } from '../db/schema.js';
+import type { Business, Category, Invitation, Product, Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
 import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
 import { SlugTakenError, type BusinessService } from '../modules/businesses/businesses.js';
 import type { MembershipLookup } from '../modules/businesses/memberships.js';
+import {
+  AlreadyMemberError,
+  CannotRemoveOwnerError,
+  INVITATION_TTL_MS,
+  InvitationEmailMismatchError,
+  InvitationNotFoundError,
+  type TeamService,
+} from '../modules/businesses/team.js';
 import {
   CategoryHasProductsError,
   CategoryNotFoundError,
@@ -72,6 +80,9 @@ export function fakeUsers(initial: User[] = []): UserRepository & { all: User[] 
     all,
     async findByEmail(email) {
       return all.find((u) => u.email === email) ?? null;
+    },
+    async findByIds(ids) {
+      return all.filter((u) => ids.includes(u.id));
     },
     async create(data) {
       // Igual que el índice único de la base.
@@ -195,6 +206,84 @@ export function fakeCatalog(): CatalogService & { categories: Category[]; produc
       const product = findProduct(businessId, productId);
       if (!product) return false;
       products.splice(products.indexOf(product), 1);
+      return true;
+    },
+  };
+}
+
+// Usa las mismas listas que fakeUsers y fakeMemberships: aceptar una invitación
+// suma la membresía y después requireRole y /auth/me la ven.
+export function fakeTeam(
+  users: ReturnType<typeof fakeUsers>,
+  memberships: ReturnType<typeof fakeMemberships>,
+): TeamService & { invitations: (Invitation & { token: string })[] } {
+  const invitations: (Invitation & { token: string })[] = [];
+  let counter = 0;
+  const usable = (i: Invitation) => i.acceptedAt === null && i.expiresAt > new Date();
+
+  return {
+    invitations,
+    async getTeam(businessId) {
+      const members = memberships.entries
+        .filter((e) => e.businessId === businessId)
+        .flatMap((e) => {
+          const u = users.all.find((x) => x.id === e.userId);
+          return u ? [{ userId: u.id, name: u.name, email: u.email, role: e.role }] : [];
+        });
+      return { members, invitations: invitations.filter((i) => i.businessId === businessId && usable(i)) };
+    },
+    async invite(businessId, invitedBy, input) {
+      const existing = users.all.find((u) => u.email === input.email);
+      if (existing && memberships.entries.some((e) => e.businessId === businessId && e.userId === existing.id)) {
+        throw new AlreadyMemberError();
+      }
+      // Reemplaza la pendiente anterior para ese email, como la versión real.
+      for (let i = invitations.length - 1; i >= 0; i--) {
+        const old = invitations[i]!;
+        if (old.businessId === businessId && old.email === input.email && old.acceptedAt === null) invitations.splice(i, 1);
+      }
+      const token = `invite-token-${++counter}`;
+      const invitation = {
+        id: randomUUID(),
+        businessId,
+        email: input.email,
+        role: input.role,
+        tokenHash: `hash-${token}`,
+        invitedBy,
+        expiresAt: new Date(Date.now() + INVITATION_TTL_MS),
+        acceptedAt: null,
+        createdAt: new Date(),
+        token,
+      };
+      invitations.push(invitation);
+      return { invitation, token };
+    },
+    async revokeInvitation(businessId, invitationId) {
+      const index = invitations.findIndex((i) => i.id === invitationId && i.businessId === businessId && i.acceptedAt === null);
+      if (index === -1) return false;
+      invitations.splice(index, 1);
+      return true;
+    },
+    async previewInvitation(token) {
+      const invitation = invitations.find((i) => i.token === token && usable(i));
+      const business = memberships.businesses.find((b) => b.id === invitation?.businessId);
+      return invitation && business ? { businessName: business.name, role: invitation.role, email: invitation.email } : null;
+    },
+    async acceptInvitation(token, user) {
+      const invitation = invitations.find((i) => i.token === token && usable(i));
+      if (!invitation) throw new InvitationNotFoundError();
+      if (invitation.email !== user.email) throw new InvitationEmailMismatchError(invitation.email);
+      if (!memberships.entries.some((e) => e.businessId === invitation.businessId && e.userId === user.id)) {
+        memberships.entries.push({ businessId: invitation.businessId, userId: user.id, role: invitation.role });
+      }
+      invitation.acceptedAt = new Date();
+      return { businessId: invitation.businessId };
+    },
+    async removeMember(businessId, userId) {
+      const index = memberships.entries.findIndex((e) => e.businessId === businessId && e.userId === userId);
+      if (index === -1) return false;
+      if (memberships.entries[index]!.role === 'owner') throw new CannotRemoveOwnerError();
+      memberships.entries.splice(index, 1);
       return true;
     },
   };

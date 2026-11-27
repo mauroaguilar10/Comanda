@@ -345,3 +345,91 @@ h1 {
 .paused-badge {
   margin-left: 0.5rem;
 }
+
+/* Pestañas Menú / Equipo */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.tabs a {
+  padding: 0.6rem 1rem;
+  min-height: 44px;
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+}
+
+.tabs a[aria-current='page'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* Fila de una persona del equipo o de una invitación */
+.member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.member h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.member p {
+  margin: 0.1rem 0 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+/* El link recién creado */
+.invite-link {
+  border: 1px solid var(--good);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.invite-link p {
+  margin: 0;
+}
+
+.link-box {
+  font: inherit;
+  font-size: max(0.95rem, 16px);
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Oculto a la vista pero leído por los lectores de pantalla. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+section + section {
+  margin-top: 1.5rem;
+}
+
+/* Dentro de .stack el espacio lo pone el gap: sin márgenes propios que se sumen. */
+.stack > h1,
+.stack > h2,
+.stack > p {
+  margin: 0;
+}

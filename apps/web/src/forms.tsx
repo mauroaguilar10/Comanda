@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type InputHTMLAttributes } from 'react';
+import { useState, type FormEvent, type InputHTMLAttributes, type SelectHTMLAttributes } from 'react';
 import { ApiError } from './api';
 
 export type FieldErrors = Record<string, string | undefined>;
@@ -22,6 +22,48 @@ export function Field({
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <input id={id} name={name} aria-invalid={error ? true : undefined} aria-describedby={describedBy} {...input} />
+      {hint && (
+        <p id={`${id}-hint`} className="hint">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={`${id}-error`} className="field-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Igual que Field, pero un <select>.
+export function SelectField({
+  name,
+  id: idProp,
+  label,
+  error,
+  hint,
+  options,
+  ...select
+}: {
+  name: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  options: { value: string; label: string }[];
+} & SelectHTMLAttributes<HTMLSelectElement>) {
+  const id = idProp ?? `field-${name}`;
+  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} name={name} aria-invalid={error ? true : undefined} aria-describedby={describedBy} {...select}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
       {hint && (
         <p id={`${id}-hint`} className="hint">
           {hint}

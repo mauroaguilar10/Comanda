@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { users, type User } from '../../db/schema.js';
 import { isUniqueViolation } from '../../lib/db-errors.js';
@@ -16,6 +16,8 @@ export class EmailTakenError extends Error {
 // createUserRepository lo hace con Drizzle y fakeUsers (en los tests) en memoria.
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
+  // Para otros módulos (por ejemplo, el equipo de un local): no leen la tabla users directo.
+  findByIds(ids: string[]): Promise<User[]>;
   // Tira EmailTakenError si el email ya existe.
   create(data: { email: string; name: string; passwordHash: string }): Promise<User>;
 }
@@ -25,6 +27,11 @@ export function createUserRepository(db: Db): UserRepository {
     async findByEmail(email) {
       const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
       return row ?? null;
+    },
+
+    async findByIds(ids) {
+      if (ids.length === 0) return [];
+      return db.select().from(users).where(inArray(users.id, ids));
     },
 
     async create(data) {

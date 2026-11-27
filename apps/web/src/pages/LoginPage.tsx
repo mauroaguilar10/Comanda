@@ -1,7 +1,7 @@
 import { loginInputSchema } from '@comanda/shared';
 import { useAuth } from '../auth';
 import { Field, FormError, formValues, issuesToFieldErrors, useFormSubmit } from '../forms';
-import { Link } from '../router';
+import { getSearchParam, Link } from '../router';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -20,7 +20,16 @@ export function LoginPage() {
       {/* noValidate: validamos nosotros, con los mismos mensajes que la API. */}
       <form onSubmit={handleSubmit} noValidate className="stack">
         <FormError message={formError} />
-        <Field name="email" label="Email" type="email" autoComplete="email" required error={fieldErrors.email} />
+        <Field
+          name="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          // Viene precargado desde el link de invitación (?email=...).
+          defaultValue={getSearchParam('email') ?? ''}
+          error={fieldErrors.email}
+        />
         <Field
           name="password"
           label="Contraseña"
@@ -34,7 +43,7 @@ export function LoginPage() {
         </button>
       </form>
       <p>
-        ¿No tenés cuenta? <Link to="/registro">Creá una</Link>
+        ¿No tenés cuenta? <Link to={`/registro${window.location.search}`}>Creá una</Link>
       </p>
     </main>
   );

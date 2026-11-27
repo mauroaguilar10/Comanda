@@ -2,7 +2,7 @@ import { registerInputSchema } from '@comanda/shared';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { Field, FormError, formValues, issuesToFieldErrors, useFormSubmit } from '../forms';
-import { Link } from '../router';
+import { getSearchParam, Link } from '../router';
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -26,7 +26,16 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit} noValidate className="stack">
         <FormError message={formError} />
         <Field name="name" label="Tu nombre" autoComplete="name" required error={fieldErrors.name} />
-        <Field name="email" label="Email" type="email" autoComplete="email" required error={fieldErrors.email} />
+        <Field
+          name="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          // Viene precargado desde el link de invitación (?email=...).
+          defaultValue={getSearchParam('email') ?? ''}
+          error={fieldErrors.email}
+        />
         <Field
           name="password"
           label="Contraseña"
@@ -43,7 +52,7 @@ export function RegisterPage() {
         </button>
       </form>
       <p>
-        ¿Ya tenés cuenta? <Link to="/login">Entrá</Link>
+        ¿Ya tenés cuenta? <Link to={`/login${window.location.search}`}>Entrá</Link>
       </p>
     </main>
   );

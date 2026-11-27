@@ -13,7 +13,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, request } from '../api';
 import { Field, FormError, formValues, issuesToFieldErrors, useFormSubmit } from '../forms';
 import { centsToInput, formatPrice, parsePrice } from '../money';
-import { Link, Redirect } from '../router';
+import { canManage } from '../roles';
+import { Redirect } from '../router';
+import { BusinessNav } from './BusinessNav';
 
 type Category = CatalogResponse['categories'][number];
 
@@ -46,7 +48,7 @@ export function BusinessPage({ businessId, me }: { businessId: string; me: MeRes
   }, [reload]);
 
   if (!business) return <Redirect to="/" />;
-  const canEdit = business.role === 'owner' || business.role === 'manager';
+  const canEdit = canManage(business.role);
 
   // Envuelve una acción de los botones (borrar, pausar): muestra el resultado y recarga.
   async function run(action: () => Promise<unknown>, okText: string) {
@@ -62,11 +64,8 @@ export function BusinessPage({ businessId, me }: { businessId: string; me: MeRes
 
   return (
     <main className="container">
-      <p>
-        <Link to="/">← Tus locales</Link>
-      </p>
-      <h1>{business.name}</h1>
-      <p className="muted">Menú{canEdit ? '' : ' (solo lectura)'}</p>
+      <BusinessNav business={business} current="menu" />
+      {!canEdit && <p className="muted">Menú (solo lectura)</p>}
 
       {/* aria-live: el lector de pantalla anuncia el mensaje cuando cambia, sin mover el foco. */}
       <div aria-live="polite">

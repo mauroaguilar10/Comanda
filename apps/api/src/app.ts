@@ -9,6 +9,8 @@ import type { CatalogService } from './modules/catalog/catalog.js';
 import { catalogRoutes } from './modules/catalog/routes.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { businessRoutes } from './modules/businesses/routes.js';
+import type { TeamService } from './modules/businesses/team.js';
+import { invitationRoutes, teamRoutes } from './modules/businesses/team-routes.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerRateLimit } from './plugins/rate-limit.js';
 
@@ -23,6 +25,7 @@ export interface AppDeps {
   users?: UserRepository;
   businesses?: BusinessService;
   catalog?: CatalogService;
+  team?: TeamService;
   secureCookies?: boolean;
   // Orígenes del navegador que pueden llamar a la API con cookies (ver config.ts).
   corsOrigins?: string[];
@@ -42,7 +45,13 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   // Nunca usar origin: '*' acá: con credentials permitiría que cualquier sitio
   // haga pedidos con la sesión del usuario.
   if (deps.corsOrigins?.length) {
-    await app.register(cors, { origin: deps.corsOrigins, credentials: true });
+    await app.register(cors, {
+      origin: deps.corsOrigins,
+      credentials: true,
+      // Por defecto el plugin solo permite GET, HEAD y POST: sin esto, el navegador
+      // bloquea editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+    });
   }
 
   await registerRateLimit(app);
@@ -66,7 +75,7 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
 
   // Cada módulo registra sus rutas solo si le pasaron lo que necesita.
   // Así un test de /health no tiene que armar usuarios ni sesiones.
-  const { sessions, memberships, users, businesses, catalog } = deps;
+  const { sessions, memberships, users, businesses, catalog, team } = deps;
   if (sessions && memberships && users) {
     await app.register(authRoutes, { prefix: '/auth', users, sessions, memberships });
   }
@@ -76,6 +85,10 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   if (sessions && memberships && catalog) {
     // El prefijo lleva el :businessId: todas las rutas del catálogo son de un local.
     await app.register(catalogRoutes, { prefix: '/businesses/:businessId', catalog, memberships });
+  }
+  if (sessions && memberships && team) {
+    await app.register(teamRoutes, { prefix: '/businesses/:businessId', team, memberships });
+    await app.register(invitationRoutes, { prefix: '/invitations', team });
   }
 
   return app;

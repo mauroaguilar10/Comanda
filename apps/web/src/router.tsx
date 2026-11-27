@@ -38,3 +38,25 @@ export function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
   return null;
 }
+
+// Lee un parámetro de la URL (?clave=valor). Se lee en cada render: navigate() ya hace
+// que se vuelva a renderizar cuando cambia la URL.
+export function getSearchParam(name: string): string | null {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+// A dónde volver después de entrar o registrarse (?volver=/invitacion/...).
+// Solo rutas internas: "/algo" sí, "//sitio-falso.com" o "https://..." no. Si no,
+// alguien podría armar un link de login que después mande a la persona a otro sitio
+// (un "open redirect", que se usa mucho para phishing).
+export function getReturnTo(): string | null {
+  const to = getSearchParam('volver');
+  // "/\" también: algunos navegadores lo tratan como "//".
+  return to && to.startsWith('/') && !to.startsWith('//') && !to.startsWith('/\\') ? to : null;
+}
+
+// Arma "/login?volver=..." para mandar a alguien a entrar y que después vuelva acá.
+export function withReturnTo(path: string, returnTo: string, extra: Record<string, string> = {}): string {
+  const params = new URLSearchParams({ ...extra, volver: returnTo });
+  return `${path}?${params.toString()}`;
+}
