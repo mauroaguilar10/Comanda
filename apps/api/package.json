@@ -17,6 +17,7 @@
     "@comanda/shared": "workspace:*",
     "@fastify/cookie": "^11.1.5",
     "@fastify/cors": "^11.4.3",
+    "@fastify/rate-limit": "^10.3.0",
     "@node-rs/argon2": "^2.2.2",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.8",

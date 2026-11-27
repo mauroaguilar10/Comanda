@@ -15,6 +15,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.url().optional(),
+  // Poné true si la API está detrás de un proxy (Caddy, nginx, Cloudflare). Así Fastify toma
+  // la IP real del header X-Forwarded-For; si no, todos los pedidos parecen venir de la IP
+  // del proxy y el límite de intentos por IP bloquearía a todos juntos.
+  // Nunca true sin proxy: cualquiera podría inventar ese header y saltarse el límite.
+  TRUST_PROXY: z.stringbool().default(false),
   // Orígenes (dominios) desde donde un navegador puede llamar a la API con la cookie
   // de sesión, separados por coma. En producción: https://app.mauroaglr.com,https://pedir.mauroaglr.com
   // En desarrollo no hace falta: Vite hace de proxy y el navegador ve un solo origen.

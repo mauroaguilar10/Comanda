@@ -1,5 +1,6 @@
 import type { MeResponse, Role } from '@comanda/shared';
 import { useState } from 'react';
+import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { Link } from '../router';
 
@@ -13,11 +14,20 @@ const ROLE_LABELS: Record<Role, string> = {
 export function HomePage({ me }: { me: MeResponse }) {
   const { logout } = useAuth();
   const [leaving, setLeaving] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   async function onLogout() {
     setLeaving(true);
+    setLogoutError(null);
     try {
       await logout();
+    } catch (err) {
+      // Si la API no respondió, la sesión sigue abierta en el servidor: no fingimos que
+      // se cerró (al recargar volvería a entrar), avisamos para que pruebe de nuevo.
+      console.error(err);
+      setLogoutError(
+        err instanceof ApiError ? err.message : 'No se pudo cerrar la sesión. Probá de nuevo.',
+      );
     } finally {
       setLeaving(false);
     }
@@ -32,6 +42,11 @@ export function HomePage({ me }: { me: MeResponse }) {
           Cerrar sesión
         </button>
       </header>
+      {logoutError && (
+        <p role="alert" className="form-error banner">
+          {logoutError}
+        </p>
+      )}
 
       <main className="container">
         <h1>Tus locales</h1>

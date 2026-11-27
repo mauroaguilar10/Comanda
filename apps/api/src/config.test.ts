@@ -19,3 +19,13 @@ describe('CORS_ORIGINS', () => {
     expect(() => loadConfig({ CORS_ORIGINS: 'app.mauroaglr.com' })).toThrow();
   });
 });
+
+describe('TRUST_PROXY', () => {
+  it('por defecto es false', () => {
+    expect(loadConfig({}).TRUST_PROXY).toBe(false);
+  });
+
+  it('acepta "true"', () => {
+    expect(loadConfig({ TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(true);
+  });
+});
