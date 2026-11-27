@@ -5,6 +5,8 @@ import { authRoutes } from './modules/auth/routes.js';
 import type { SessionService } from './modules/auth/sessions.js';
 import type { UserRepository } from './modules/auth/users.js';
 import type { BusinessService } from './modules/businesses/businesses.js';
+import type { CatalogService } from './modules/catalog/catalog.js';
+import { catalogRoutes } from './modules/catalog/routes.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { businessRoutes } from './modules/businesses/routes.js';
 import { registerAuth } from './plugins/auth.js';
@@ -20,6 +22,7 @@ export interface AppDeps {
   memberships?: MembershipLookup;
   users?: UserRepository;
   businesses?: BusinessService;
+  catalog?: CatalogService;
   secureCookies?: boolean;
   // Orígenes del navegador que pueden llamar a la API con cookies (ver config.ts).
   corsOrigins?: string[];
@@ -63,12 +66,16 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
 
   // Cada módulo registra sus rutas solo si le pasaron lo que necesita.
   // Así un test de /health no tiene que armar usuarios ni sesiones.
-  const { sessions, memberships, users, businesses } = deps;
+  const { sessions, memberships, users, businesses, catalog } = deps;
   if (sessions && memberships && users) {
     await app.register(authRoutes, { prefix: '/auth', users, sessions, memberships });
   }
   if (sessions && memberships && businesses) {
     await app.register(businessRoutes, { prefix: '/businesses', businesses, memberships });
+  }
+  if (sessions && memberships && catalog) {
+    // El prefijo lleva el :businessId: todas las rutas del catálogo son de un local.
+    await app.register(catalogRoutes, { prefix: '/businesses/:businessId', catalog, memberships });
   }
 
   return app;
