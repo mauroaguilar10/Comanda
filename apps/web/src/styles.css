@@ -1,0 +1,81 @@
+/* CSS propio, sin librerías. Los colores viven en variables
+   para cambiar todo el tema (claro u oscuro) desde un solo lugar. */
+:root {
+  --bg: #ffffff;
+  --text: #111418;
+  --muted: #4a5360;
+  --border: #d7dce2;
+  --good: #11753a;
+  --bad: #b42318;
+  --focus: #1d4ed8;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --text: #e6edf3;
+    --muted: #9aa5b1;
+    --border: #2d333b;
+    --good: #4ade80;
+    --bad: #f87171;
+    --focus: #60a5fa;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.container {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.lead {
+  color: var(--muted);
+}
+
+.status {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.status h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.good {
+  color: var(--good);
+}
+
+.bad {
+  color: var(--bad);
+}
