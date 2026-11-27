@@ -30,7 +30,8 @@ Decisiones de diseño del sistema; las que dependen de módulos todavía no cons
 
 ## Estado
 
-**Etapa 0 completa:** esqueleto del monorepo, API con chequeo de salud y base, web que la consume, PostgreSQL en Docker y CI. Lo siguiente es el modelo de datos con Drizzle, la autenticación y el primer flujo de pedido de punta a punta.
+- **Etapa 0 completa:** esqueleto del monorepo, API con chequeo de salud y base, web que la consume, PostgreSQL en Docker y CI.
+- **Etapa 1 en curso:** registro, login y sesiones con cookie httpOnly y Argon2; negocios multi-tenant con roles (dueño, encargado, cocina, reparto) chequeados en el backend; pantallas de login, registro y alta del local. Faltan las invitaciones de empleados y el catálogo con fotos.
 
 ---
 

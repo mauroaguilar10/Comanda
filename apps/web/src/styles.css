@@ -1,13 +1,19 @@
 /* CSS propio, sin librerías. Los colores viven en variables
-   para cambiar todo el tema (claro u oscuro) desde un solo lugar. */
+   para cambiar todo el tema (claro u oscuro) desde un solo lugar.
+   Mobile first: los estilos base son para el celular; las pantallas
+   más anchas solo agregan espacio. */
 :root {
   --bg: #ffffff;
+  --surface: #f6f8fa;
   --text: #111418;
   --muted: #4a5360;
-  --border: #d7dce2;
+  --border: #c9d1d9;
+  --accent: #1d4ed8; /* contraste 6.7:1 con texto blanco */
+  --accent-text: #ffffff;
   --good: #11753a;
   --bad: #b42318;
   --focus: #1d4ed8;
+  --radius: 0.5rem;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
 }
@@ -15,12 +21,15 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0d1117;
+    --surface: #161b22;
     --text: #e6edf3;
     --muted: #9aa5b1;
-    --border: #2d333b;
+    --border: #3d444d;
+    --accent: #60a5fa; /* en oscuro el botón es claro y el texto oscuro */
+    --accent-text: #0d1117;
     --good: #4ade80;
     --bad: #f87171;
-    --focus: #60a5fa;
+    --focus: #93c5fd;
   }
 }
 
@@ -39,43 +48,158 @@ body {
   outline-offset: 2px;
 }
 
+a {
+  color: var(--accent);
+}
+
+h1 {
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
 .container {
   max-width: 40rem;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem;
 }
 
-.lead {
+.container.narrow {
+  max-width: 26rem;
+}
+
+.lead,
+.muted {
   color: var(--muted);
 }
 
-.status {
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-}
-
-.status h2 {
-  margin-top: 0;
-  font-size: 1.1rem;
-}
-
-dl {
+/* Separa los hijos con el mismo espacio vertical. */
+.stack {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 1rem;
-  margin: 0;
+  gap: 1rem;
 }
 
-dd {
-  margin: 0;
+/* Formularios */
+.field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.field label {
   font-weight: 600;
 }
 
-.good {
-  color: var(--good);
+.field input {
+  font: inherit;
+  /* 16px o más: si no, Safari en iPhone hace zoom al tocar el campo. */
+  font-size: max(1rem, 16px);
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
 }
 
-.bad {
+.field input[aria-invalid='true'] {
+  border-color: var(--bad);
+}
+
+.hint,
+.field-error {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.field-error {
   color: var(--bad);
+  font-weight: 600;
+}
+
+.form-error {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* Botones (también para enlaces que se ven como botón) */
+.button {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  /* 44px de alto mínimo: tamaño cómodo para tocar con el dedo. */
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Barra superior con sesión iniciada */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar .brand {
+  font-weight: 700;
+  margin-right: auto;
+}
+
+/* Tarjetas y listas */
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.card h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.card p {
+  margin: 0.25rem 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
