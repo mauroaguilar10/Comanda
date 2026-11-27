@@ -7,6 +7,7 @@ import type { UserRepository } from './modules/auth/users.js';
 import type { BusinessService } from './modules/businesses/businesses.js';
 import type { CatalogService } from './modules/catalog/catalog.js';
 import { catalogRoutes } from './modules/catalog/routes.js';
+import { noOrderEvents, type OrderEvents } from './modules/orders/events.js';
 import type { OrdersService } from './modules/orders/orders.js';
 import { ordersRoutes, storeRoutes } from './modules/orders/routes.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
@@ -16,6 +17,7 @@ import { invitationRoutes, teamRoutes } from './modules/businesses/team-routes.j
 import type { FileStorage } from './lib/storage.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerRateLimit } from './plugins/rate-limit.js';
+import { attachRealtime } from './plugins/realtime.js';
 
 export interface AppDeps {
   // La app no sabe cómo se chequea la base: se lo pasan de afuera.
@@ -31,6 +33,10 @@ export interface AppDeps {
   team?: TeamService;
   storage?: FileStorage;
   orders?: OrdersService;
+  // Socket.IO para el tiempo real. Apagado por defecto: la mayoría de los tests no lo usa.
+  realtime?: boolean;
+  // Para tests: reemplaza el emisor de eventos de pedidos (por ejemplo, uno que los anota).
+  orderEvents?: OrderEvents;
   // Solo con el almacenamiento en disco (desarrollo): lee un archivo para servirlo en /uploads.
   readUpload?: (key: string) => Promise<Buffer | null>;
   secureCookies?: boolean;
@@ -95,9 +101,12 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   }
 
   if (sessions && memberships && orders && businesses && catalog && storage) {
+    const events =
+      deps.orderEvents ??
+      (deps.realtime ? attachRealtime(app, { sessions, memberships, orders, corsOrigins: deps.corsOrigins ?? [] }) : noOrderEvents);
     // Tienda pública (sin sesión) y panel de pedidos del local.
-    await app.register(storeRoutes, { prefix: '/store', orders, businesses, catalog, storage });
-    await app.register(ordersRoutes, { prefix: '/businesses/:businessId', orders, memberships });
+    await app.register(storeRoutes, { prefix: '/store', orders, businesses, catalog, storage, events });
+    await app.register(ordersRoutes, { prefix: '/businesses/:businessId', orders, memberships, events });
   }
 
   // Fotos guardadas en disco (desarrollo). En producción las sirve R2 directo, no la API.

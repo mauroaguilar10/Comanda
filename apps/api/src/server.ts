@@ -31,6 +31,7 @@ const app = await buildApp({
   secureCookies: config.NODE_ENV === 'production',
   corsOrigins: config.CORS_ORIGINS,
   storage,
+  realtime: true,
   ...(diskStorage && { readUpload: diskStorage.read }),
   trustProxy: config.TRUST_PROXY,
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
