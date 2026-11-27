@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { healthResponseSchema, type HealthResponse } from '@comanda/shared';
+import { authRoutes } from './modules/auth/routes.js';
 import type { SessionService } from './modules/auth/sessions.js';
+import type { UserRepository } from './modules/auth/users.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { registerAuth } from './plugins/auth.js';
 
@@ -12,6 +14,7 @@ export interface AppDeps {
   // en los tests son falsas.
   sessions?: SessionService;
   memberships?: MembershipLookup;
+  users?: UserRepository;
   secureCookies?: boolean;
   logger?: boolean;
 }
@@ -38,9 +41,12 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
     });
   });
 
-  // Etapa 1 (lo escribe Mauro, ver docs/etapa-1.md):
-  // await app.register(authRoutes, { prefix: '/auth', ... });
-  // await app.register(businessRoutes, { prefix: '/businesses', ... });
+  // Cada módulo registra sus rutas solo si le pasaron lo que necesita.
+  // Así un test de /health no tiene que armar usuarios ni sesiones.
+  const { sessions, memberships, users } = deps;
+  if (sessions && memberships && users) {
+    await app.register(authRoutes, { prefix: '/auth', users, sessions, memberships });
+  }
 
   return app;
 }
