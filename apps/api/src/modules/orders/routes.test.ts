@@ -31,7 +31,13 @@ async function setup() {
   const catalog = fakeCatalog();
   const orders = fakeOrders();
   const storage = fakeStorage();
-  const app = await buildApp({ users, sessions, memberships, businesses, catalog, orders, storage });
+  // Anota los avisos de tiempo real para revisarlos en los tests.
+  const events: string[] = [];
+  const orderEvents = {
+    created: (o: { number: number }) => void events.push(`created #${o.number}`),
+    updated: (o: { number: number; status: string }) => void events.push(`updated #${o.number} ${o.status}`),
+  };
+  const app = await buildApp({ users, sessions, memberships, businesses, catalog, orders, storage, orderEvents });
 
   const pizzas = await catalog.createCategory(donMario.id, { name: 'Pizzas' });
   await catalog.createCategory(donMario.id, { name: 'Vacía' });
@@ -83,7 +89,7 @@ async function setup() {
     paymentMethod: 'cash',
   };
 
-  return { app, orders, catalog, donMario, muzza, napo, pausada, ajeno, as, order, takeaway };
+  return { app, orders, catalog, events, donMario, muzza, napo, pausada, ajeno, as, order, takeaway };
 }
 
 describe('tienda pública', () => {
@@ -304,5 +310,37 @@ describe('abrir y cerrar la tienda', () => {
     expect(manager.json()).toEqual({ acceptingOrders: false });
     const store = await app.inject({ method: 'GET', url: '/store/don-mario' });
     expect(store.json().acceptingOrders).toBe(false);
+  });
+});
+
+describe('avisos de tiempo real', () => {
+  it('avisa al crear y al cambiar de estado', async () => {
+    const { app, order, orders, takeaway, donMario, as, events } = await setup();
+    await order(takeaway);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/businesses/${donMario.id}/orders/${orders.orders[0]!.id}`,
+      headers: await as('kitchen'),
+      payload: { from: 'received', status: 'preparing' },
+    });
+
+    expect(events).toEqual(['created #1', 'updated #1 preparing']);
+  });
+
+  it('no avisa si el pedido no se guardó o el cambio no se aplicó', async () => {
+    const { app, order, orders, takeaway, donMario, as, events } = await setup();
+    await order({ ...takeaway, fulfillment: 'delivery' }); // sin dirección: 400
+    await order(takeaway);
+    events.length = 0;
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/businesses/${donMario.id}/orders/${orders.orders[0]!.id}`,
+      headers: await as('kitchen'),
+      payload: { from: 'received', status: 'cancelled' }, // cocina no cancela: 403
+    });
+
+    expect(events).toEqual([]);
   });
 });

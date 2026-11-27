@@ -10,6 +10,8 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
+        // También las conexiones WebSocket de Socket.IO (/api/socket.io).
+        ws: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },

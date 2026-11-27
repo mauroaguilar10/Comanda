@@ -19,6 +19,7 @@ import type { BusinessService } from '../businesses/businesses.js';
 import type { MembershipLookup } from '../businesses/memberships.js';
 import type { CatalogService } from '../catalog/catalog.js';
 import { toProductResponse } from '../catalog/present.js';
+import type { OrderEvents } from './events.js';
 import type { OrdersService, OrderWithItems } from './orders.js';
 import { priceOrder, ProductsUnavailableError } from './pricing.js';
 
@@ -37,9 +38,9 @@ const toOrderResponse = (order: OrderWithItems) => orderSchema.parse(order);
 // Tienda pública: sin sesión. Se registra con prefix '/store'.
 export async function storeRoutes(
   app: FastifyInstance,
-  opts: { orders: OrdersService; businesses: BusinessService; catalog: CatalogService; storage: FileStorage },
+  opts: { orders: OrdersService; businesses: BusinessService; catalog: CatalogService; storage: FileStorage; events: OrderEvents },
 ): Promise<void> {
-  const { orders, businesses, catalog, storage } = opts;
+  const { orders, businesses, catalog, storage, events } = opts;
   const limitOrders = limiter(app, { ...STORE_LIMITS.ordersPerIp, keyGenerator: (req) => `store-order:${req.ip}` });
 
   app.get('/:slug', async (request, reply) => {
@@ -90,6 +91,8 @@ export async function storeRoutes(
 
     const { items: _items, ...customer } = parsed.data;
     const { order, trackingToken } = await orders.createOrder(business.id, customer, priced.lines, priced.totalCents);
+    // Recién después de guardarlo: si falló, no avisamos de un pedido que no existe.
+    events.created(order);
     return reply.code(201).send(createdOrderResponseSchema.parse({ number: order.number, trackingToken }));
   });
 
@@ -108,9 +111,9 @@ export async function storeRoutes(
 // Panel de pedidos del local. Se registra con prefix '/businesses/:businessId'.
 export async function ordersRoutes(
   app: FastifyInstance,
-  opts: { orders: OrdersService; memberships: MembershipLookup },
+  opts: { orders: OrdersService; memberships: MembershipLookup; events: OrderEvents },
 ): Promise<void> {
-  const { orders, memberships } = opts;
+  const { orders, memberships, events } = opts;
   const anyMember = requireRole(memberships, 'manager', 'kitchen', 'driver');
   const managers = requireRole(memberships, 'manager');
 
@@ -140,6 +143,7 @@ export async function ordersRoutes(
     // Y si cambió entre que lo leímos y ahora, el "where status = from" no actualiza nada.
     const updated = await orders.updateStatus(businessId, orderId, from, to);
     if (!updated) return changed();
+    events.updated(updated);
     return reply.send({ status: updated.status });
   });
 
