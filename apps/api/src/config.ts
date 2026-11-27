@@ -15,6 +15,21 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.url().optional(),
+  // Orígenes (dominios) desde donde un navegador puede llamar a la API con la cookie
+  // de sesión, separados por coma. En producción: https://app.mauroaglr.com,https://pedir.mauroaglr.com
+  // En desarrollo no hace falta: Vite hace de proxy y el navegador ve un solo origen.
+  CORS_ORIGINS: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean),
+    )
+    // new URL(...).origin deja solo esquema + dominio + puerto: "https://app.mauroaglr.com/"
+    // pasa a "https://app.mauroaglr.com", que es lo que manda el navegador en el header Origin.
+    .pipe(z.array(z.url().transform((u) => new URL(u).origin))),
 });
 
 export type Config = z.infer<typeof envSchema>;

@@ -14,6 +14,7 @@ const db = pool ? createDb(pool) : undefined;
 const app = await buildApp({
   logger: true,
   secureCookies: config.NODE_ENV === 'production',
+  corsOrigins: config.CORS_ORIGINS,
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
   ...(db && {
     sessions: createSessionService(db),

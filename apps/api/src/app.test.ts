@@ -32,3 +32,42 @@ describe('GET /health', () => {
     expect(res.json()).toMatchObject({ status: 'degraded', database: 'error' });
   });
 });
+
+describe('CORS', () => {
+  const WEB = 'https://app.mauroaglr.com';
+
+  // Antes de un POST con JSON desde otro origen, el navegador pregunta con OPTIONS
+  // ("preflight") si tiene permiso. Simulamos esa pregunta.
+  const preflight = (app: Awaited<ReturnType<typeof buildApp>>, origin: string) =>
+    app.inject({
+      method: 'OPTIONS',
+      url: '/health',
+      headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type' },
+    });
+
+  it('permite a la web llamar con cookies', async () => {
+    const app = await buildApp({ corsOrigins: [WEB] });
+
+    const res = await preflight(app, WEB);
+
+    expect(res.statusCode).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe(WEB);
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('no le da permiso a otro sitio', async () => {
+    const app = await buildApp({ corsOrigins: [WEB] });
+
+    const res = await preflight(app, 'https://sitio-malo.com');
+
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('sin orígenes configurados no agrega CORS', async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({ method: 'GET', url: '/health', headers: { origin: WEB } });
+
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});

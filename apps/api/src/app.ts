@@ -1,3 +1,4 @@
+import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { healthResponseSchema, type HealthResponse } from '@comanda/shared';
 import { authRoutes } from './modules/auth/routes.js';
@@ -19,6 +20,8 @@ export interface AppDeps {
   users?: UserRepository;
   businesses?: BusinessService;
   secureCookies?: boolean;
+  // Orígenes del navegador que pueden llamar a la API con cookies (ver config.ts).
+  corsOrigins?: string[];
   logger?: boolean;
 }
 
@@ -26,6 +29,15 @@ export interface AppDeps {
 // server.ts la levanta de verdad; los tests la usan con app.inject().
 export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: deps.logger ?? false });
+
+  // CORS: la web (app.mauroaglr.com) y la API (api.mauroaglr.com) son orígenes distintos.
+  // Por defecto el navegador no deja que una página lea respuestas de otro origen;
+  // con esto la API le dice "a estos orígenes, sí, y con cookies".
+  // Nunca usar origin: '*' acá: con credentials permitiría que cualquier sitio
+  // haga pedidos con la sesión del usuario.
+  if (deps.corsOrigins?.length) {
+    await app.register(cors, { origin: deps.corsOrigins, credentials: true });
+  }
 
   if (deps.sessions) {
     await registerAuth(app, { sessions: deps.sessions, secureCookies: deps.secureCookies ?? false });
