@@ -433,3 +433,55 @@ section + section {
 .stack > p {
   margin: 0;
 }
+
+/* Fotos de productos */
+.product-main {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.product-thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  object-fit: cover; /* recorta para llenar el cuadrado sin deformar */
+  border-radius: var(--radius);
+  background: var(--border);
+}
+
+.photo-field {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.photo-field legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.photo-field p {
+  margin: 0;
+}
+
+.photo-preview {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+/* El input de archivo está oculto: el foco del teclado se muestra en su label (el "botón"). */
+.file-input:focus-visible + label {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+label.button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}

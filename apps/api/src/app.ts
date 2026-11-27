@@ -11,6 +11,7 @@ import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { businessRoutes } from './modules/businesses/routes.js';
 import type { TeamService } from './modules/businesses/team.js';
 import { invitationRoutes, teamRoutes } from './modules/businesses/team-routes.js';
+import type { FileStorage } from './lib/storage.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerRateLimit } from './plugins/rate-limit.js';
 
@@ -26,6 +27,9 @@ export interface AppDeps {
   businesses?: BusinessService;
   catalog?: CatalogService;
   team?: TeamService;
+  storage?: FileStorage;
+  // Solo con el almacenamiento en disco (desarrollo): lee un archivo para servirlo en /uploads.
+  readUpload?: (key: string) => Promise<Buffer | null>;
   secureCookies?: boolean;
   // Orígenes del navegador que pueden llamar a la API con cookies (ver config.ts).
   corsOrigins?: string[];
@@ -49,8 +53,8 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
       origin: deps.corsOrigins,
       credentials: true,
       // Por defecto el plugin solo permite GET, HEAD y POST: sin esto, el navegador
-      // bloquea editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
-      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+      // bloquea subir fotos (PUT), editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
+      methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     });
   }
 
@@ -75,16 +79,33 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
 
   // Cada módulo registra sus rutas solo si le pasaron lo que necesita.
   // Así un test de /health no tiene que armar usuarios ni sesiones.
-  const { sessions, memberships, users, businesses, catalog, team } = deps;
+  const { sessions, memberships, users, businesses, catalog, team, storage } = deps;
   if (sessions && memberships && users) {
     await app.register(authRoutes, { prefix: '/auth', users, sessions, memberships });
   }
   if (sessions && memberships && businesses) {
     await app.register(businessRoutes, { prefix: '/businesses', businesses, memberships });
   }
-  if (sessions && memberships && catalog) {
+  if (sessions && memberships && catalog && storage) {
     // El prefijo lleva el :businessId: todas las rutas del catálogo son de un local.
-    await app.register(catalogRoutes, { prefix: '/businesses/:businessId', catalog, memberships });
+    await app.register(catalogRoutes, { prefix: '/businesses/:businessId', catalog, memberships, storage });
+  }
+
+  // Fotos guardadas en disco (desarrollo). En producción las sirve R2 directo, no la API.
+  const { readUpload } = deps;
+  if (readUpload) {
+    const types: Record<string, string> = { webp: 'image/webp', jpg: 'image/jpeg', png: 'image/png' };
+    app.get('/uploads/*', async (request, reply) => {
+      const key = (request.params as { '*': string })['*'];
+      const file = await readUpload(key);
+      if (!file) return reply.code(404).send({ error: 'not_found', message: 'No existe esa foto.' });
+      return reply
+        .type(types[key.split('.').pop()!] ?? 'application/octet-stream')
+        // nosniff: el navegador respeta el tipo que decimos y no "adivina" otro (por ejemplo, HTML).
+        .header('x-content-type-options', 'nosniff')
+        .header('cache-control', 'public, max-age=31536000, immutable')
+        .send(file);
+    });
   }
   if (sessions && memberships && team) {
     await app.register(teamRoutes, { prefix: '/businesses/:businessId', team, memberships });

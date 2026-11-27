@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { FileStorage } from '../lib/storage.js';
 import type { Business, Category, Invitation, Product, Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
 import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
@@ -187,6 +188,7 @@ export function fakeCatalog(): CatalogService & { categories: Category[]; produc
         description: input.description || null,
         priceCents: input.priceCents,
         available: input.available,
+        imageKey: null,
         position: nextPosition(products.filter((p) => p.categoryId === input.categoryId)),
         createdAt: now,
         updatedAt: now,
@@ -204,9 +206,16 @@ export function fakeCatalog(): CatalogService & { categories: Category[]; produc
     },
     async deleteProduct(businessId, productId) {
       const product = findProduct(businessId, productId);
-      if (!product) return false;
+      if (!product) return null;
       products.splice(products.indexOf(product), 1);
-      return true;
+      return product;
+    },
+    async setImage(businessId, productId, imageKey) {
+      const product = findProduct(businessId, productId);
+      if (!product) return null;
+      const previousKey = product.imageKey;
+      product.imageKey = imageKey;
+      return { product, previousKey };
     },
   };
 }
@@ -285,6 +294,23 @@ export function fakeTeam(
       if (memberships.entries[index]!.role === 'owner') throw new CannotRemoveOwnerError();
       memberships.entries.splice(index, 1);
       return true;
+    },
+  };
+}
+
+// Almacenamiento en memoria: guarda lo que se sube para poder revisarlo en los tests.
+export function fakeStorage(): FileStorage & { files: Map<string, { body: Buffer; contentType: string }> } {
+  const files = new Map<string, { body: Buffer; contentType: string }>();
+  return {
+    files,
+    async put(key, body, contentType) {
+      files.set(key, { body, contentType });
+    },
+    async delete(key) {
+      files.delete(key);
+    },
+    url(key) {
+      return `https://fotos.test/${key}`;
     },
   };
 }
