@@ -8,6 +8,7 @@ import { createSessionService } from './modules/auth/sessions.js';
 import { createUserRepository } from './modules/auth/users.js';
 import { createBusinessService } from './modules/businesses/businesses.js';
 import { createCatalogService } from './modules/catalog/catalog.js';
+import { createOrdersService } from './modules/orders/orders.js';
 import { createMembershipLookup } from './modules/businesses/memberships.js';
 import { createTeamService } from './modules/businesses/team.js';
 
@@ -40,6 +41,7 @@ const app = await buildApp({
     businesses: createBusinessService(db),
     catalog: createCatalogService(db),
     team: createTeamService(db, users!),
+    orders: createOrdersService(db),
   }),
 });
 

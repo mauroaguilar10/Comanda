@@ -166,6 +166,88 @@ export const products = pgTable(
   ],
 );
 
+// ─── Pedidos (etapa 2) ───────────────────────────────────────────────────────
+
+export const orderStatusEnum = pgEnum('order_status', [
+  'received', // recibido
+  'preparing', // en preparación
+  'ready', // listo
+  'on_the_way', // en camino (solo envíos)
+  'delivered', // entregado o retirado
+  'cancelled',
+]);
+export const fulfillmentEnum = pgEnum('fulfillment', ['takeaway', 'delivery']);
+export const paymentMethodEnum = pgEnum('payment_method', ['cash', 'transfer']);
+
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    // Número corto por local (#1, #2...): lo que se dice en el mostrador.
+    number: integer('number').notNull(),
+    status: orderStatusEnum('status').notNull().default('received'),
+    fulfillment: fulfillmentEnum('fulfillment').notNull(),
+    paymentMethod: paymentMethodEnum('payment_method').notNull(),
+    customerName: text('customer_name').notNull(),
+    customerPhone: text('customer_phone').notNull(),
+    // Solo para envíos.
+    address: text('address'),
+    notes: text('notes'),
+    totalCents: integer('total_cents').notNull(),
+    // El link de seguimiento lleva el token; acá, como siempre, solo su hash.
+    trackingTokenHash: text('tracking_token_hash').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('orders_business_number_unique').on(t.businessId, t.number),
+    uniqueIndex('orders_tracking_token_hash_unique').on(t.trackingTokenHash),
+    // El panel busca "los pedidos de este local en estos estados".
+    index('orders_business_status_idx').on(t.businessId, t.status),
+    check('orders_total_non_negative', sql`${t.totalCents} >= 0`),
+  ],
+);
+
+export const orderItems = pgTable(
+  'order_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    // set null: si el local borra el producto, el pedido viejo sigue existiendo.
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+    // Copia del nombre y el precio al momento del pedido.
+    name: text('name').notNull(),
+    unitPriceCents: integer('unit_price_cents').notNull(),
+    quantity: integer('quantity').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    index('order_items_order_id_idx').on(t.orderId),
+    check('order_items_quantity_positive', sql`${t.quantity} > 0`),
+  ],
+);
+
+// Último número de pedido usado por cada local. Ver docs/etapa-2.md.
+export const orderSequences = pgTable('order_sequences', {
+  businessId: uuid('business_id')
+    .primaryKey()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  lastNumber: integer('last_number').notNull(),
+});
+
+// Configuración de la tienda pública. Si no hay fila, valen los valores por defecto.
+export const storeSettings = pgTable('store_settings', {
+  businessId: uuid('business_id')
+    .primaryKey()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
+  acceptingOrders: boolean('accepting_orders').notNull().default(true),
+  ...timestamps,
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
@@ -175,3 +257,6 @@ export type Role = (typeof roleEnum.enumValues)[number];
 export type Invitation = typeof invitations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];

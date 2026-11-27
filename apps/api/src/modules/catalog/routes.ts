@@ -4,7 +4,6 @@ import {
   categorySchema,
   categoryUpdateSchema,
   productInputSchema,
-  productSchema,
   productUpdateSchema,
 } from '@comanda/shared';
 import { IMAGE_CONTENT_TYPES, MAX_IMAGE_BYTES } from '@comanda/shared';
@@ -17,6 +16,7 @@ import { generateToken } from '../../lib/tokens.js';
 import { validationError } from '../../lib/validation.js';
 import { requireRole } from '../../plugins/auth.js';
 import type { MembershipLookup } from '../businesses/memberships.js';
+import { toProductResponse } from './present.js';
 import { CategoryHasProductsError, CategoryNotFoundError, type CatalogService } from './catalog.js';
 
 export interface CatalogRoutesOptions {
@@ -46,10 +46,7 @@ const categoryFieldError = (reply: FastifyReply) =>
 export async function catalogRoutes(app: FastifyInstance, opts: CatalogRoutesOptions): Promise<void> {
   const { catalog, memberships, storage } = opts;
 
-  // El producto como lo ve la web: sin businessId ni fechas, y con la URL de la foto
-  // (en la base guardamos la clave; la URL depende de dónde están guardadas).
-  const toResponse = (product: Product) =>
-    productSchema.parse({ ...product, imageUrl: product.imageKey ? storage.url(product.imageKey) : null });
+  const toResponse = (product: Product) => toProductResponse(product, storage);
 
   // Borrar un archivo viejo no tiene que romper el pedido: si falla, queda huérfano
   // en el almacenamiento (ocupa lugar, pero no se ve) y lo dejamos anotado en el log.

@@ -7,6 +7,8 @@ import type { UserRepository } from './modules/auth/users.js';
 import type { BusinessService } from './modules/businesses/businesses.js';
 import type { CatalogService } from './modules/catalog/catalog.js';
 import { catalogRoutes } from './modules/catalog/routes.js';
+import type { OrdersService } from './modules/orders/orders.js';
+import { ordersRoutes, storeRoutes } from './modules/orders/routes.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { businessRoutes } from './modules/businesses/routes.js';
 import type { TeamService } from './modules/businesses/team.js';
@@ -28,6 +30,7 @@ export interface AppDeps {
   catalog?: CatalogService;
   team?: TeamService;
   storage?: FileStorage;
+  orders?: OrdersService;
   // Solo con el almacenamiento en disco (desarrollo): lee un archivo para servirlo en /uploads.
   readUpload?: (key: string) => Promise<Buffer | null>;
   secureCookies?: boolean;
@@ -79,7 +82,7 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
 
   // Cada módulo registra sus rutas solo si le pasaron lo que necesita.
   // Así un test de /health no tiene que armar usuarios ni sesiones.
-  const { sessions, memberships, users, businesses, catalog, team, storage } = deps;
+  const { sessions, memberships, users, businesses, catalog, team, storage, orders } = deps;
   if (sessions && memberships && users) {
     await app.register(authRoutes, { prefix: '/auth', users, sessions, memberships });
   }
@@ -89,6 +92,12 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   if (sessions && memberships && catalog && storage) {
     // El prefijo lleva el :businessId: todas las rutas del catálogo son de un local.
     await app.register(catalogRoutes, { prefix: '/businesses/:businessId', catalog, memberships, storage });
+  }
+
+  if (sessions && memberships && orders && businesses && catalog && storage) {
+    // Tienda pública (sin sesión) y panel de pedidos del local.
+    await app.register(storeRoutes, { prefix: '/store', orders, businesses, catalog, storage });
+    await app.register(ordersRoutes, { prefix: '/businesses/:businessId', orders, memberships });
   }
 
   // Fotos guardadas en disco (desarrollo). En producción las sirve R2 directo, no la API.
