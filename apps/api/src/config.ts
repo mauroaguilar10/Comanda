@@ -11,6 +11,7 @@ try {
 // Validamos las variables al arrancar: si falta algo, la API no levanta
 // y el error dice qué falta, en vez de fallar más tarde con un mensaje raro.
 const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.url().optional(),

@@ -6,7 +6,7 @@ import { buildApp } from './app.js';
 
 describe('GET /health', () => {
   it('responde ok cuando no hay base configurada', async () => {
-    const app = buildApp();
+    const app = await buildApp();
 
     const res = await app.inject({ method: 'GET', url: '/health' });
 
@@ -16,7 +16,7 @@ describe('GET /health', () => {
 
   it('responde ok cuando la base contesta', async () => {
     const checkDatabase = vi.fn().mockResolvedValue(true);
-    const app = buildApp({ checkDatabase });
+    const app = await buildApp({ checkDatabase });
 
     const res = await app.inject({ method: 'GET', url: '/health' });
 
@@ -25,7 +25,7 @@ describe('GET /health', () => {
   });
 
   it('avisa degraded cuando la base no contesta', async () => {
-    const app = buildApp({ checkDatabase: vi.fn().mockResolvedValue(false) });
+    const app = await buildApp({ checkDatabase: vi.fn().mockResolvedValue(false) });
 
     const res = await app.inject({ method: 'GET', url: '/health' });
 
