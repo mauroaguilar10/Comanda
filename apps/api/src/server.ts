@@ -15,6 +15,7 @@ const app = await buildApp({
   logger: true,
   secureCookies: config.NODE_ENV === 'production',
   corsOrigins: config.CORS_ORIGINS,
+  trustProxy: config.TRUST_PROXY,
   ...(pool && { checkDatabase: () => pingDatabase(pool) }),
   ...(db && {
     sessions: createSessionService(db),

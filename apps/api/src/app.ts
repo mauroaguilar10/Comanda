@@ -8,6 +8,7 @@ import type { BusinessService } from './modules/businesses/businesses.js';
 import type { MembershipLookup } from './modules/businesses/memberships.js';
 import { businessRoutes } from './modules/businesses/routes.js';
 import { registerAuth } from './plugins/auth.js';
+import { registerRateLimit } from './plugins/rate-limit.js';
 
 export interface AppDeps {
   // La app no sabe cómo se chequea la base: se lo pasan de afuera.
@@ -22,13 +23,15 @@ export interface AppDeps {
   secureCookies?: boolean;
   // Orígenes del navegador que pueden llamar a la API con cookies (ver config.ts).
   corsOrigins?: string[];
+  // true cuando la API corre detrás de un proxy (Caddy, nginx, Cloudflare). Ver config.ts.
+  trustProxy?: boolean;
   logger?: boolean;
 }
 
 // buildApp arma la aplicación sin ponerla a escuchar en un puerto.
 // server.ts la levanta de verdad; los tests la usan con app.inject().
 export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: deps.logger ?? false });
+  const app = Fastify({ logger: deps.logger ?? false, trustProxy: deps.trustProxy ?? false });
 
   // CORS: la web (app.mauroaglr.com) y la API (api.mauroaglr.com) son orígenes distintos.
   // Por defecto el navegador no deja que una página lea respuestas de otro origen;
@@ -38,6 +41,8 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
   if (deps.corsOrigins?.length) {
     await app.register(cors, { origin: deps.corsOrigins, credentials: true });
   }
+
+  await registerRateLimit(app);
 
   if (deps.sessions) {
     await registerAuth(app, { sessions: deps.sessions, secureCookies: deps.secureCookies ?? false });

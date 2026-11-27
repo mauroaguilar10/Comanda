@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../app.js';
 import { hashPassword } from '../../lib/password.js';
 import { SESSION_COOKIE } from '../../plugins/auth.js';
+import { AUTH_LIMITS } from './routes.js';
 import { fakeMemberships, fakeSessions, fakeUsers, makeBusiness } from '../../test/fakes.js';
 
 const PASSWORD = 'una-clave-larga';
@@ -186,5 +187,68 @@ describe('GET /auth/me', () => {
         { id: rotiseria.id, name: 'Rotisería La Esquina', slug: 'la-esquina', role: 'kitchen' },
       ],
     });
+  });
+});
+
+describe('límite de intentos', () => {
+  // app.inject permite elegir la IP de origen con remoteAddress.
+  const loginFrom = (app: App, ip: string, email: string) =>
+    app.inject({ method: 'POST', url: '/auth/login', remoteAddress: ip, payload: { email, password: 'mala-clave-xx' } });
+
+  it('después de muchos intentos contra el mismo email responde 429, aunque cambie la IP', async () => {
+    const { app } = await setup();
+    const { max } = AUTH_LIMITS.loginPerEmail;
+
+    for (let i = 0; i < max; i++) {
+      // Cada intento desde una IP distinta: el límite por IP no llega a activarse.
+      expect((await loginFrom(app, `10.0.0.${i}`, 'ana@example.com')).statusCode).toBe(401);
+    }
+    // Con otras mayúsculas cuenta como el mismo email.
+    const blocked = await loginFrom(app, '10.0.1.1', 'ANA@example.com');
+
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json()).toEqual({
+      error: 'too_many_requests',
+      message: 'Demasiados intentos. Probá de nuevo en 15 minutos.',
+    });
+    expect(blocked.headers['retry-after']).toBeDefined();
+  });
+
+  it('el bloqueo de un email no afecta a otro', async () => {
+    const { app } = await setup();
+    for (let i = 0; i <= AUTH_LIMITS.loginPerEmail.max; i++) await loginFrom(app, `10.0.0.${i}`, 'ana@example.com');
+
+    expect((await loginFrom(app, '10.0.2.1', 'beto@example.com')).statusCode).toBe(401);
+  });
+
+  it('después de muchos intentos desde la misma IP responde 429, aunque cambie el email', async () => {
+    const { app } = await setup();
+    const { max } = AUTH_LIMITS.loginPerIp;
+
+    for (let i = 0; i < max; i++) {
+      expect((await loginFrom(app, '10.0.0.1', `persona${i}@example.com`)).statusCode).toBe(401);
+    }
+
+    expect((await loginFrom(app, '10.0.0.1', 'otra@example.com')).statusCode).toBe(429);
+    // Otra IP sigue pudiendo entrar.
+    expect((await loginFrom(app, '10.0.0.2', 'otra@example.com')).statusCode).toBe(401);
+  });
+
+  it('limita los registros por IP', async () => {
+    const { app, users } = await setup();
+    const registerFrom = (ip: string, i: number) =>
+      app.inject({
+        method: 'POST',
+        url: '/auth/register',
+        remoteAddress: ip,
+        payload: { name: 'Bot', email: `bot${i}@example.com`, password: PASSWORD },
+      });
+
+    for (let i = 0; i < AUTH_LIMITS.registerPerIp.max; i++) {
+      expect((await registerFrom('10.0.0.1', i)).statusCode).toBe(201);
+    }
+
+    expect((await registerFrom('10.0.0.1', 999)).statusCode).toBe(429);
+    expect(users.all).toHaveLength(AUTH_LIMITS.registerPerIp.max);
   });
 });
