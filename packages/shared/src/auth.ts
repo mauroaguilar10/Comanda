@@ -33,17 +33,17 @@ export type MeResponse = z.infer<typeof meResponseSchema>;
 
 // POST /businesses
 export const createBusinessInputSchema = z.object({
-  name: z.string().trim().min(2).max(100),
+  name: z.string().trim().min(2, 'Poné el nombre del local').max(100, 'Máximo 100 caracteres'),
   // Solo minúsculas, números y guiones: va en la URL de la tienda.
   slug: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Solo minúsculas, números y guiones')
-    .min(3)
-    .max(50),
-  phone: z.string().trim().max(30).optional(),
-  address: z.string().trim().max(200).optional(),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(50, 'Máximo 50 caracteres')
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Solo minúsculas, números y guiones'),
+  phone: z.string().trim().max(30, 'Máximo 30 caracteres').optional(),
+  address: z.string().trim().max(200, 'Máximo 200 caracteres').optional(),
 });
 export type CreateBusinessInput = z.infer<typeof createBusinessInputSchema>;
 
@@ -60,5 +60,10 @@ export const businessSchema = z.object({
 export type BusinessResponse = z.infer<typeof businessSchema>;
 
 // Formato común de error de la API.
-export const apiErrorSchema = z.object({ error: z.string(), message: z.string() });
+// `fields` viene en los 400: los errores de cada campo del formulario.
+export const apiErrorSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  fields: z.record(z.string(), z.array(z.string()).optional()).optional(),
+});
 export type ApiError = z.infer<typeof apiErrorSchema>;
