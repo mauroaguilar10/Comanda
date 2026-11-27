@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { BusinessPage } from './pages/BusinessPage';
 import { HomePage } from './pages/HomePage';
+import { InvitationPage } from './pages/InvitationPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewBusinessPage } from './pages/NewBusinessPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { Redirect, usePath } from './router';
+import { TeamPage } from './pages/TeamPage';
+import { getReturnTo, Redirect, usePath, withReturnTo } from './router';
 
 export function App() {
   return (
@@ -30,15 +32,26 @@ function Routes() {
 
   if (state.status === 'error') return <SessionError retry={refresh} />;
 
-  if (state.status === 'anonymous') {
-    if (path === '/registro') return <RegisterPage />;
-    if (path !== '/login') return <Redirect to="/login" />;
-    return <LoginPage />;
+  // El link de invitación se abre con o sin sesión.
+  const invitationMatch = /^\/invitacion\/([^/]+)$/.exec(path);
+  if (invitationMatch) {
+    const me = state.status === 'authenticated' ? state.me : null;
+    return <InvitationPage key={invitationMatch[1]} token={invitationMatch[1]!} me={me} />;
   }
 
-  // Con sesión, login y registro no tienen sentido: van al inicio.
-  if (path === '/login' || path === '/registro') return <Redirect to="/" />;
+  if (state.status === 'anonymous') {
+    if (path === '/registro') return <RegisterPage />;
+    if (path === '/login') return <LoginPage />;
+    // Cualquier otra pantalla pide entrar, y después vuelve a donde iba.
+    return <Redirect to={path === '/' ? '/login' : withReturnTo('/login', path)} />;
+  }
+
+  // Con sesión, login y registro no tienen sentido: van a donde iba (?volver=) o al inicio.
+  if (path === '/login' || path === '/registro') return <Redirect to={getReturnTo() ?? '/'} />;
   if (path === '/locales/nuevo') return <NewBusinessPage />;
+  // /locales/<id>/equipo: quiénes trabajan e invitaciones.
+  const teamMatch = /^\/locales\/([^/]+)\/equipo$/.exec(path);
+  if (teamMatch) return <TeamPage key={teamMatch[1]} businessId={teamMatch[1]!} me={state.me} />;
   // /locales/<id>: el menú de ese local.
   const businessMatch = /^\/locales\/([^/]+)$/.exec(path);
   if (businessMatch) return <BusinessPage key={businessMatch[1]} businessId={businessMatch[1]!} me={state.me} />;

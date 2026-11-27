@@ -1,15 +1,10 @@
-import type { MeResponse, Role } from '@comanda/shared';
+import type { MeResponse } from '@comanda/shared';
 import { useState } from 'react';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { ROLE_LABELS } from '../roles';
 import { Link } from '../router';
 
-const ROLE_LABELS: Record<Role, string> = {
-  owner: 'Dueño',
-  manager: 'Encargado',
-  kitchen: 'Cocina',
-  driver: 'Reparto',
-};
 
 export function HomePage({ me }: { me: MeResponse }) {
   const { logout } = useAuth();
