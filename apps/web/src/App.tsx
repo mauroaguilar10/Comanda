@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
+import { BusinessPage } from './pages/BusinessPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { NewBusinessPage } from './pages/NewBusinessPage';
@@ -38,6 +39,9 @@ function Routes() {
   // Con sesión, login y registro no tienen sentido: van al inicio.
   if (path === '/login' || path === '/registro') return <Redirect to="/" />;
   if (path === '/locales/nuevo') return <NewBusinessPage />;
+  // /locales/<id>: el menú de ese local.
+  const businessMatch = /^\/locales\/([^/]+)$/.exec(path);
+  if (businessMatch) return <BusinessPage key={businessMatch[1]} businessId={businessMatch[1]!} me={state.me} />;
   if (path !== '/') return <Redirect to="/" />;
   return <HomePage me={state.me} />;
 }

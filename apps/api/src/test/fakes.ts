@@ -1,9 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import type { Business, Role, User } from '../db/schema.js';
+import type { Business, Category, Product, Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
 import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
 import { SlugTakenError, type BusinessService } from '../modules/businesses/businesses.js';
 import type { MembershipLookup } from '../modules/businesses/memberships.js';
+import {
+  CategoryHasProductsError,
+  CategoryNotFoundError,
+  type CatalogService,
+} from '../modules/catalog/catalog.js';
 
 // Versiones en memoria de los servicios, para los tests.
 // Cumplen la misma interfaz que las de Drizzle, así la app no nota la diferencia.
@@ -107,6 +112,90 @@ export function fakeBusinesses(memberships: ReturnType<typeof fakeMemberships>):
     },
     async findById(id) {
       return memberships.businesses.find((b) => b.id === id) ?? null;
+    },
+  };
+}
+
+// Mismo comportamiento que la versión con Drizzle: todo filtrado por businessId,
+// no deja borrar categorías con productos y valida que la categoría sea del local.
+export function fakeCatalog(): CatalogService & { categories: Category[]; products: Product[] } {
+  const categories: Category[] = [];
+  const products: Product[] = [];
+  const findCategory = (businessId: string, id: string) =>
+    categories.find((c) => c.id === id && c.businessId === businessId);
+  const findProduct = (businessId: string, id: string) =>
+    products.find((p) => p.id === id && p.businessId === businessId);
+  const nextPosition = (items: { position: number }[]) => Math.max(-1, ...items.map((i) => i.position)) + 1;
+  const byPosition = (a: { position: number }, b: { position: number }) => a.position - b.position;
+
+  return {
+    categories,
+    products,
+    async getCatalog(businessId) {
+      return {
+        categories: categories
+          .filter((c) => c.businessId === businessId)
+          .sort(byPosition)
+          .map((c) => ({ ...c, products: products.filter((p) => p.categoryId === c.id).sort(byPosition) })),
+      };
+    },
+    async createCategory(businessId, input) {
+      const now = new Date();
+      const category: Category = {
+        id: randomUUID(),
+        businessId,
+        name: input.name,
+        position: nextPosition(categories.filter((c) => c.businessId === businessId)),
+        createdAt: now,
+        updatedAt: now,
+      };
+      categories.push(category);
+      return category;
+    },
+    async updateCategory(businessId, categoryId, input) {
+      const category = findCategory(businessId, categoryId);
+      if (!category) return null;
+      Object.assign(category, input, { updatedAt: new Date() });
+      return category;
+    },
+    async deleteCategory(businessId, categoryId) {
+      const category = findCategory(businessId, categoryId);
+      if (!category) return false;
+      if (products.some((p) => p.categoryId === categoryId)) throw new CategoryHasProductsError();
+      categories.splice(categories.indexOf(category), 1);
+      return true;
+    },
+    async createProduct(businessId, input) {
+      if (!findCategory(businessId, input.categoryId)) throw new CategoryNotFoundError();
+      const now = new Date();
+      const product: Product = {
+        id: randomUUID(),
+        businessId,
+        categoryId: input.categoryId,
+        name: input.name,
+        description: input.description || null,
+        priceCents: input.priceCents,
+        available: input.available,
+        position: nextPosition(products.filter((p) => p.categoryId === input.categoryId)),
+        createdAt: now,
+        updatedAt: now,
+      };
+      products.push(product);
+      return product;
+    },
+    async updateProduct(businessId, productId, input) {
+      if (input.categoryId && !findCategory(businessId, input.categoryId)) throw new CategoryNotFoundError();
+      const product = findProduct(businessId, productId);
+      if (!product) return null;
+      const description = input.description !== undefined ? { description: input.description || null } : {};
+      Object.assign(product, input, description, { updatedAt: new Date() });
+      return product;
+    },
+    async deleteProduct(businessId, productId) {
+      const product = findProduct(businessId, productId);
+      if (!product) return false;
+      products.splice(products.indexOf(product), 1);
+      return true;
     },
   };
 }

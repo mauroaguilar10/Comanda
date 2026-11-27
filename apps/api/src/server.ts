@@ -5,6 +5,7 @@ import { createPool, pingDatabase } from './db.js';
 import { createSessionService } from './modules/auth/sessions.js';
 import { createUserRepository } from './modules/auth/users.js';
 import { createBusinessService } from './modules/businesses/businesses.js';
+import { createCatalogService } from './modules/catalog/catalog.js';
 import { createMembershipLookup } from './modules/businesses/memberships.js';
 
 const config = loadConfig();
@@ -22,6 +23,7 @@ const app = await buildApp({
     memberships: createMembershipLookup(db),
     users: createUserRepository(db),
     businesses: createBusinessService(db),
+    catalog: createCatalogService(db),
   }),
 });
 

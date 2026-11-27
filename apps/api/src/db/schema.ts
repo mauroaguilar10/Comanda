@@ -1,4 +1,5 @@
-import { index, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, check, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 // Esquema de la etapa 1: personas, sesiones, negocios y quién trabaja en cada uno.
 // Drizzle lee este archivo para generar las migraciones SQL (pnpm db:generate).
@@ -87,9 +88,61 @@ export const memberships = pgTable(
   ],
 );
 
+// Catálogo: cada local organiza sus productos en categorías ("Pizzas", "Empanadas", "Bebidas").
+// Las dos tablas llevan business_id aunque el producto ya sepa su categoría: así cada consulta
+// filtra por local directamente y es imposible mezclar el menú de dos negocios.
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    // Orden en el menú (menor primero). Las nuevas van al final.
+    position: integer('position').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('categories_business_id_idx').on(t.businessId)],
+);
+
+export const products = pgTable(
+  'products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    // no action: la base no deja borrar una categoría que todavía tiene productos,
+    // así nunca quedan productos "huérfanos" fuera del menú. Es como restrict, pero el
+    // chequeo se hace al final de la operación: si se borra el local entero, la cascada
+    // alcanza a borrar también los productos antes de que se queje.
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'no action' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    // En centavos y entero: con decimales (0.1 + 0.2 = 0.30000000000000004) los totales
+    // de los pedidos terminarían con errores de redondeo.
+    priceCents: integer('price_cents').notNull(),
+    // false = "sin stock por hoy": sigue cargado pero no se puede pedir.
+    available: boolean('available').notNull().default(true),
+    position: integer('position').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index('products_business_id_idx').on(t.businessId),
+    index('products_category_id_idx').on(t.categoryId),
+    // Segunda red de seguridad además de Zod: la base rechaza precios negativos.
+    check('products_price_cents_non_negative', sql`${t.priceCents} >= 0`),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type Business = typeof businesses.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Role = (typeof roleEnum.enumValues)[number];
+export type Category = typeof categories.$inferSelect;
+export type Product = typeof products.$inferSelect;

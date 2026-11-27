@@ -64,10 +64,17 @@ export function HomePage({ me }: { me: MeResponse }) {
             <ul className="list" role="list">
               {me.businesses.map((b) => (
                 <li key={b.id} className="card">
-                  <h2>{b.name}</h2>
+                  <h2>
+                    <Link to={`/locales/${b.id}`}>{b.name}</Link>
+                  </h2>
                   <p className="muted">pedir.mauroaglr.com/{b.slug}</p>
                   <p>
                     <span className="badge">{ROLE_LABELS[b.role]}</span>
+                  </p>
+                  <p>
+                    <Link to={`/locales/${b.id}`} className="button small" aria-label={`Ver el menú de ${b.name}`}>
+                      Ver menú
+                    </Link>
                   </p>
                 </li>
               ))}
