@@ -29,6 +29,13 @@
       "when": 1795812896743,
       "tag": "0003_etapa1_fotos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795818431896,
+      "tag": "0004_etapa2_pedidos",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { ACTIVE_STATUSES } from '@comanda/shared';
 import type { FileStorage } from '../lib/storage.js';
-import type { Business, Category, Invitation, Product, Role, User } from '../db/schema.js';
+import type { OrdersService, OrderWithItems } from '../modules/orders/orders.js';
+import type { Business, Category, Invitation, Order, OrderItem, Product, Role, User } from '../db/schema.js';
 import type { AuthUser, SessionService } from '../modules/auth/sessions.js';
 import { EmailTakenError, type UserRepository } from '../modules/auth/users.js';
 import { SlugTakenError, type BusinessService } from '../modules/businesses/businesses.js';
@@ -124,6 +126,9 @@ export function fakeBusinesses(memberships: ReturnType<typeof fakeMemberships>):
     },
     async findById(id) {
       return memberships.businesses.find((b) => b.id === id) ?? null;
+    },
+    async findBySlug(slug) {
+      return memberships.businesses.find((b) => b.slug === slug) ?? null;
     },
   };
 }
@@ -311,6 +316,73 @@ export function fakeStorage(): FileStorage & { files: Map<string, { body: Buffer
     },
     url(key) {
       return `https://fotos.test/${key}`;
+    },
+  };
+}
+
+// Pedidos en memoria. Guarda el token en claro junto al pedido (en la base real, solo el hash).
+export function fakeOrders(): OrdersService & { orders: (OrderWithItems & { token: string })[]; settings: Map<string, boolean> } {
+  const orders: (OrderWithItems & { token: string })[] = [];
+  const settings = new Map<string, boolean>();
+  const numbers = new Map<string, number>();
+  let tokens = 0;
+  const strip = ({ token: _t, ...o }: OrderWithItems & { token: string }) => o;
+
+  return {
+    orders,
+    settings,
+    async getSettings(businessId) {
+      return { acceptingOrders: settings.get(businessId) ?? true };
+    },
+    async updateSettings(businessId, value) {
+      settings.set(businessId, value.acceptingOrders);
+      return value;
+    },
+    async createOrder(businessId, input, lines, totalCents) {
+      const number = (numbers.get(businessId) ?? 0) + 1;
+      numbers.set(businessId, number);
+      const token = `tracking-${++tokens}`;
+      const now = new Date();
+      const id = randomUUID();
+      const items: OrderItem[] = lines.map((l, position) => ({ id: randomUUID(), orderId: id, ...l, position }));
+      const order = {
+        id,
+        businessId,
+        number,
+        status: 'received' as const,
+        fulfillment: input.fulfillment,
+        paymentMethod: input.paymentMethod,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        address: input.fulfillment === 'delivery' ? (input.address ?? null) : null,
+        notes: input.notes || null,
+        totalCents,
+        trackingTokenHash: `hash-${token}`,
+        createdAt: now,
+        updatedAt: now,
+        items,
+        token,
+      };
+      orders.push(order);
+      const { items: _i, ...plain } = strip(order);
+      return { order: plain as Order, trackingToken: token };
+    },
+    async listActive(businessId) {
+      return orders.filter((o) => o.businessId === businessId && ACTIVE_STATUSES.includes(o.status)).map(strip);
+    },
+    async findById(businessId, orderId) {
+      const o = orders.find((x) => x.id === orderId && x.businessId === businessId);
+      return o ? (strip(o) as Order) : null;
+    },
+    async findByTrackingToken(token) {
+      const o = orders.find((x) => x.token === token);
+      return o ? strip(o) : null;
+    },
+    async updateStatus(businessId, orderId, from, to) {
+      const o = orders.find((x) => x.id === orderId && x.businessId === businessId && x.status === from);
+      if (!o) return null;
+      o.status = to;
+      return strip(o) as Order;
     },
   };
 }

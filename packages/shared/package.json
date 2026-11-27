@@ -10,14 +10,15 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo \"shared: sin tests todavía\""
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.2"
   }
 }

@@ -16,6 +16,8 @@ export interface BusinessService {
   // Crea el negocio y deja a ownerId como dueño. Tira SlugTakenError si el slug está tomado.
   createWithOwner(ownerId: string, input: CreateBusinessInput): Promise<Business>;
   findById(id: string): Promise<Business | null>;
+  // Para la tienda pública: pedir.mauroaglr.com/<slug>.
+  findBySlug(slug: string): Promise<Business | null>;
 }
 
 export function createBusinessService(db: Db): BusinessService {
@@ -43,6 +45,11 @@ export function createBusinessService(db: Db): BusinessService {
 
     async findById(id) {
       const [row] = await db.select().from(businesses).where(eq(businesses.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async findBySlug(slug) {
+      const [row] = await db.select().from(businesses).where(eq(businesses.slug, slug)).limit(1);
       return row ?? null;
     },
   };
