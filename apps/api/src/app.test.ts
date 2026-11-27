@@ -55,7 +55,7 @@ describe('CORS', () => {
     expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
-  it.each(['PATCH', 'DELETE'])('permite %s (editar y borrar desde la web)', async (method) => {
+  it.each(['PUT', 'PATCH', 'DELETE'])('permite %s (fotos, editar y borrar desde la web)', async (method) => {
     const app = await buildApp({ corsOrigins: [WEB] });
 
     const res = await app.inject({

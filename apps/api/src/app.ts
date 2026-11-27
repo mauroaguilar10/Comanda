@@ -53,8 +53,8 @@ export async function buildApp(deps: AppDeps = {}): Promise<FastifyInstance> {
       origin: deps.corsOrigins,
       credentials: true,
       // Por defecto el plugin solo permite GET, HEAD y POST: sin esto, el navegador
-      // bloquea editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
-      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+      // bloquea subir fotos (PUT), editar (PATCH) y borrar (DELETE) cuando la web está en otro dominio.
+      methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     });
   }
 
